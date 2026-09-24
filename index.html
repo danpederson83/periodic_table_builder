@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Periodic Table Builder</title>
+  <meta name="description" content="Make custom, high-resolution periodic tables for lessons, slides and tests. Highlight groups, periods and elements, show the data you need, and export SVG or PNG.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body class="landing">
+  <header class="topbar">
+    <a class="brand" href="./"><span class="brand-tile">Pt</span><span>Periodic Table Builder</span></a>
+    <nav class="top-actions">
+      <a href="#gallery">Gallery</a>
+      <a class="button primary" href="builder.html">Open the builder</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <h1>Periodic tables for your lessons, slides and tests</h1>
+        <p>Start from a classroom-ready table, highlight the groups, periods or elements you’re teaching, choose what each tile shows, and export a crisp SVG or print-quality PNG. Element data comes from <a href="https://pubchem.ncbi.nlm.nih.gov/periodic-table/" target="_blank" rel="noopener">PubChem</a>.</p>
+        <div class="hero-cta">
+          <a class="button primary big" href="builder.html#preset=families">Start building</a>
+          <a class="button big" href="#gallery">Browse examples</a>
+        </div>
+        <ul class="features">
+          <li><b>Highlight anything.</b> Click a group number, period number or element.</li>
+          <li><b>Choose what tiles show.</b> Name, mass, electronegativity, electron configuration and more.</li>
+          <li><b>Trend heatmaps.</b> Electronegativity, atomic radius, ionization energy and more.</li>
+          <li><b>Quiz-ready.</b> Blank out tiles and switch to grayscale for printing.</li>
+          <li><b>Share a link.</b> The link recreates your exact table.</li>
+        </ul>
+      </div>
+      <a class="hero-figure" href="builder.html#preset=families" id="hero" aria-label="Open the element families table in the builder"></a>
+    </section>
+
+    <section id="gallery" class="gallery-section">
+      <h2>Start from an example</h2>
+      <p class="lede">These are the tables chemistry teachers make most often. Open one in the builder and make it your own.</p>
+      <div class="gallery" id="gallery-grid"></div>
+    </section>
+
+    <section class="soon">
+      <h2>Coming soon</h2>
+      <ul>
+        <li><b>Quiz mode:</b> students identify highlighted elements, groups and trends.</li>
+        <li><b>More data on tiles and in the element panel.</b></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="footer">
+    Element data: <a href="https://pubchem.ncbi.nlm.nih.gov/periodic-table/" target="_blank" rel="noopener">PubChem</a>, National Library of Medicine. Tables you create are yours to use in class and in print.
+  </footer>
+
+  <script type="module" src="assets/js/landing.js"></script>
+</body>
+</html>

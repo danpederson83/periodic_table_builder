@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Builder · Periodic Table Builder</title>
+  <meta name="description" content="Design custom periodic tables: highlight groups, periods and elements, choose what each tile shows, and export SVG or PNG.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body class="builder">
+  <header class="topbar">
+    <a class="brand" href="./"><span class="brand-tile">Pt</span><span>Periodic Table Builder</span></a>
+    <div class="top-actions">
+      <button type="button" id="undo" title="Undo (Ctrl+Z)" aria-label="Undo">↶</button>
+      <button type="button" id="redo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo">↷</button>
+      <button type="button" id="share">Copy link</button>
+      <button type="button" id="dl-svg">SVG</button>
+      <span class="split">
+        <button type="button" id="dl-png" class="primary">Download PNG</button>
+        <select id="png-scale" aria-label="PNG resolution">
+          <option value="1">1× (≈2000 px)</option>
+          <option value="2" selected>2× (≈4000 px)</option>
+          <option value="3">3× (≈6000 px)</option>
+          <option value="4">4× (≈8000 px)</option>
+        </select>
+      </span>
+      <button type="button" id="copy-png" title="Copy PNG to clipboard, then paste into your slides">Copy image</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="panel" id="panel">
+      <section>
+        <h2>Start from</h2>
+        <select id="preset" aria-label="Preset"></select>
+      </section>
+
+      <section>
+        <h2>Text</h2>
+        <label>Title <input type="text" data-bind="title"></label>
+        <label>Subtitle <input type="text" data-bind="subtitle"></label>
+        <label>Notes <small>(one per line, shown under the table)</small><textarea rows="3" data-bind="notes"></textarea></label>
+        <div class="checks">
+          <label><input type="checkbox" data-bind="showLegend"> Legend</label>
+          <label><input type="checkbox" data-bind="showKey"> Tile key</label>
+          <label><input type="checkbox" data-bind="showSchemeNotes"> Explanatory notes</label>
+          <label><input type="checkbox" data-bind="showIsotopeNote"> † isotope masses</label>
+          <label><input type="checkbox" data-bind="showSource"> Data source</label>
+        </div>
+      </section>
+
+      <section>
+        <h2>Colors</h2>
+        <label>Color by <select data-bind="scheme" id="scheme"></select></label>
+        <div id="heat-opts" class="row">
+          <label>Property <select data-bind="heatProperty" id="heat-prop"></select></label>
+          <label>Colors <select data-bind="ramp" id="ramp"></select></label>
+        </div>
+        <label>Theme <select data-bind="theme" id="theme"></select></label>
+        <label class="inline"><input type="checkbox" data-bind="transparent"> Transparent background</label>
+      </section>
+
+      <section>
+        <h2>Tile contents</h2>
+        <div class="checks">
+          <label><input type="checkbox" data-bind="fields.number"> Atomic number</label>
+          <label><input type="checkbox" data-bind="fields.symbol"> Symbol</label>
+          <label><input type="checkbox" data-bind="fields.name"> Name</label>
+          <label><input type="checkbox" data-bind="fields.mass"> Atomic mass</label>
+        </div>
+        <label>Mass decimals <select data-bind="massDecimals" data-type="number">
+          <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+        </select></label>
+        <label>Top-right value <select data-bind="corner" id="corner"></select></label>
+        <label>Extra line <select data-bind="line" id="line"></select></label>
+      </section>
+
+      <section>
+        <h2>Layout</h2>
+        <label>Shape <select data-bind="layout">
+          <option value="18">18 columns (f-block below)</option>
+          <option value="32">32 columns (f-block inline)</option>
+        </select></label>
+        <label>Group numbers <select data-bind="groupLabels">
+          <option value="iupac">1–18 (IUPAC)</option>
+          <option value="cas">IA–VIIIA (US/CAS)</option>
+          <option value="none">Hidden</option>
+        </select></label>
+        <label class="inline"><input type="checkbox" data-bind="showPeriodLabels"> Period numbers</label>
+      </section>
+
+      <section>
+        <h2>Highlights</h2>
+        <p class="hint">Pick the Highlight tool above the table, then click elements, group numbers, or period numbers. Click again to remove.</p>
+        <div id="palette"></div>
+        <div class="checks">
+          <label><input type="checkbox" data-bind="showHighlightLegend"> Show labels in legend</label>
+          <label><input type="checkbox" data-bind="dimOthers"> Fade everything else</label>
+          <label><input type="checkbox" data-bind="blankKeepsNumber"> Blank tiles keep atomic number</label>
+        </div>
+        <div class="row">
+          <button type="button" id="clear-hl">Clear highlights</button>
+          <button type="button" id="clear-blank">Clear blanks</button>
+        </div>
+      </section>
+
+      <section>
+        <button type="button" id="reset" class="danger">Reset everything</button>
+      </section>
+    </aside>
+
+    <main class="stage">
+      <div class="toolbar" role="toolbar" aria-label="Tools">
+        <div class="seg" id="tools">
+          <button type="button" data-tool="inspect" title="Click an element to see its data">🔍 Inspect</button>
+          <button type="button" data-tool="highlight" title="Click elements, group or period numbers to highlight">🖍 Highlight</button>
+          <button type="button" data-tool="blank" title="Hide tile contents, e.g. for quizzes">▢ Blank</button>
+        </div>
+        <div class="swatches" id="swatches" aria-label="Highlight color"></div>
+        <span class="status" id="status" role="status"></span>
+      </div>
+      <div class="canvas" id="canvas"><p class="loading">Loading element data…</p></div>
+    </main>
+
+    <aside class="stats" id="stats" hidden>
+      <button type="button" class="close" id="stats-close" aria-label="Close">×</button>
+      <div id="stats-body"></div>
+    </aside>
+  </div>
+
+  <script type="module" src="assets/js/builder.js"></script>
+</body>
+</html>

@@ -1,0 +1,226 @@
+// Starter tables shown in the landing-page gallery and the builder's preset menu.
+// See docs/RESEARCH.md for why these were chosen.
+
+const hl = (zs, idx = 0) => Object.fromEntries(zs.map((z) => [z, idx]));
+
+const HALOGENS = [9, 17, 35, 53, 85, 117];
+const MYSTERY = [6, 8, 10, 11, 17, 20, 26, 35];
+
+export const PRESETS = [
+  {
+    id: 'families',
+    title: 'Element families',
+    audience: 'Intro chemistry',
+    description: 'Main groups color-coded by family, with transition metals grouped together.',
+    state: {
+      title: 'Element families',
+      subtitle: 'Elements in the same group often share chemical properties.',
+      scheme: 'families',
+    },
+  },
+  {
+    id: 'classic',
+    title: 'Classic classroom chart',
+    audience: 'Reference / wall chart',
+    description: 'PubChem categories: alkali metals, halogens, lanthanides and more.',
+    state: {
+      title: 'Periodic table of the elements',
+      scheme: 'pubchem',
+    },
+  },
+  {
+    id: 'metals',
+    title: 'Metals, nonmetals & metalloids',
+    audience: 'Middle & high school',
+    description: 'The big three-way split, including the metalloid “staircase”.',
+    state: {
+      title: 'Metals, nonmetals and metalloids',
+      subtitle: 'Most elements are metals. Metalloids have properties of both.',
+      scheme: 'metals',
+    },
+  },
+  {
+    id: 'valence',
+    title: 'Valence electrons',
+    audience: 'NGSS HS-PS1-1',
+    description: 'Outer-shell electrons for the main groups: the pattern behind reactivity.',
+    state: {
+      title: 'Valence electrons',
+      subtitle: 'Main-group elements in the same group have the same number of valence electrons.',
+      scheme: 'families',
+      corner: 'valence',
+      fields: { mass: false },
+    },
+  },
+  {
+    id: 'ions',
+    title: 'Common ion charges',
+    audience: 'Ionic bonding & naming',
+    description: 'Typical charges for main-group ions, for writing formulas and names.',
+    state: {
+      title: 'Common ion charges',
+      subtitle: 'Metals tend to lose electrons; nonmetals tend to gain them.',
+      scheme: 'metals',
+      corner: 'ion',
+      fields: { mass: false },
+    },
+  },
+  {
+    id: 'blocks',
+    title: 's, p, d and f blocks',
+    audience: 'Electron configuration',
+    description: 'Blocks show which subshell is being filled across each period.',
+    state: {
+      title: 'Blocks of the periodic table',
+      subtitle: 'The block tells you which subshell the last electrons fill.',
+      scheme: 'blocks',
+      fields: { mass: false },
+    },
+  },
+  {
+    id: 'config',
+    title: 'Electron configurations',
+    audience: 'High school / AP',
+    description: 'Noble-gas shorthand configurations on every tile.',
+    state: {
+      title: 'Electron configurations',
+      subtitle: 'Noble-gas shorthand, with the block shown by color.',
+      scheme: 'blocks',
+      line: 'config',
+      fields: { mass: false, name: false },
+    },
+  },
+  {
+    id: 'electronegativity',
+    title: 'Electronegativity trend',
+    audience: 'Periodic trends',
+    description: 'Heatmap of Pauling electronegativity: rises up and to the right.',
+    state: {
+      title: 'Electronegativity',
+      subtitle: 'Increases across a period and up a group (noble gases aside).',
+      scheme: 'heatmap',
+      heatProperty: 'en',
+      ramp: 'warm',
+      corner: 'en',
+      fields: { mass: false },
+    },
+  },
+  {
+    id: 'radius',
+    title: 'Atomic radius trend',
+    audience: 'Periodic trends',
+    description: 'Heatmap of atomic size: atoms get bigger down a group.',
+    state: {
+      title: 'Atomic radius',
+      subtitle: 'Atoms get larger down a group and generally smaller across a period.',
+      scheme: 'heatmap',
+      heatProperty: 'radius',
+      ramp: 'cool',
+      corner: 'radius',
+      fields: { mass: false },
+    },
+  },
+  {
+    id: 'ionization',
+    title: 'Ionization energy trend',
+    audience: 'Periodic trends / AP',
+    description: 'First ionization energy: how hard it is to remove an electron.',
+    state: {
+      title: 'First ionization energy',
+      subtitle: 'Energy needed to remove the outermost electron from a gaseous atom.',
+      scheme: 'heatmap',
+      heatProperty: 'ie',
+      ramp: 'green',
+      corner: 'ie',
+      fields: { mass: false },
+    },
+  },
+  {
+    id: 'states',
+    title: 'States of matter',
+    audience: 'Middle school',
+    description: 'Solid, liquid or gas at room temperature. Only two liquids!',
+    state: {
+      title: 'States at room temperature',
+      subtitle: 'Only bromine and mercury are liquids at 25 °C.',
+      scheme: 'states',
+      fields: { mass: false },
+    },
+  },
+  {
+    id: 'halogens',
+    title: 'Spotlight: halogens',
+    audience: 'Slides',
+    description: 'One group highlighted with everything else faded. Works for any group or period.',
+    state: {
+      title: 'The halogens (group 17)',
+      subtitle: 'Reactive nonmetals that form salts with metals.',
+      scheme: 'none',
+      highlights: hl(HALOGENS),
+      palette: [{ color: '#e27ba9', label: 'Halogens' }],
+      dimOthers: true,
+    },
+  },
+  {
+    id: 'mystery',
+    title: 'Mystery elements quiz',
+    audience: 'Tests & worksheets',
+    description: 'Selected tiles blanked out for students to identify from position.',
+    state: {
+      title: 'Mystery elements',
+      subtitle: 'Write the symbol and name of each highlighted element.',
+      scheme: 'none',
+      highlights: hl(MYSTERY),
+      blanks: MYSTERY,
+      palette: [{ color: '#f2c14e', label: 'Identify these elements' }],
+      theme: 'print',
+    },
+  },
+  {
+    id: 'blank',
+    title: 'Blank practice table',
+    audience: 'Tests & worksheets',
+    description: 'Atomic numbers only, ready to print for fill-in-the-blank recall.',
+    state: {
+      title: 'Periodic table practice',
+      subtitle: 'Fill in the symbol for each element.',
+      scheme: 'none',
+      fields: { symbol: false, name: false, mass: false },
+      showLegend: false,
+      showSource: false,
+      showIsotopeNote: false,
+      theme: 'print',
+    },
+  },
+  {
+    id: 'discovery',
+    title: 'History of discovery',
+    audience: 'History of science',
+    description: 'When each element was discovered, as a heatmap.',
+    state: {
+      title: 'When were the elements discovered?',
+      subtitle: 'Darker tiles were discovered more recently. Elements known since antiquity have no date.',
+      scheme: 'heatmap',
+      heatProperty: 'year',
+      ramp: 'cool',
+      corner: 'year',
+      fields: { mass: false },
+    },
+  },
+  {
+    id: 'slides',
+    title: 'Dark slide deck',
+    audience: 'Slides',
+    description: 'Symbols on a dark background, designed for projectors.',
+    state: {
+      title: 'Periodic table',
+      scheme: 'pubchem',
+      theme: 'dark',
+      fields: { mass: false },
+      showKey: false,
+      showSchemeNotes: false,
+    },
+  },
+];
+
+export const presetById = (id) => PRESETS.find((p) => p.id === id);

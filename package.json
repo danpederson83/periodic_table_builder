@@ -1,0 +1,14 @@
+{
+  "name": "periodic-table-builder",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Build custom, high-resolution periodic tables for teaching.",
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "data": "node scripts/build-data.mjs",
+    "data:offline": "node scripts/build-data.mjs data/PubChemElements_all.csv"
+  },
+  "engines": { "node": ">=18" }
+}
