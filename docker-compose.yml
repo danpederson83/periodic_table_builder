@@ -8,7 +8,7 @@ services:
     build: .
     restart: unless-stopped
     ports:
-      - "8080:80"   # optional: for LAN access / testing. Remove if you only want the tunnel.
+      - "8083:80"   # optional: for LAN access / testing. Remove if you only want the tunnel.
 
   cloudflared:
     image: cloudflare/cloudflared:latest
