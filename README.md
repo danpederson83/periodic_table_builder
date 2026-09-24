@@ -56,6 +56,13 @@ Notes:
 
 ## Self-hosting with Docker and a Cloudflare Tunnel
 
+> **Deploying with Claude Code on your server?** Clone the repo and tell Claude:
+> *"Read DEPLOY.md and walk me through deploying this."* [`DEPLOY.md`](DEPLOY.md) covers
+> servers that already run cloudflared, fresh tunnels, verification, updates and
+> troubleshooting.
+
+The short version, for a fresh tunnel:
+
 1. In the Cloudflare dashboard, go to **Zero Trust → Networks → Tunnels**, create a tunnel
    (type *Cloudflared*), and copy its token.
 2. Next to `docker-compose.yml`, create a `.env` file containing:
