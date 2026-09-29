@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { renderSVG } from '../assets/js/render.js';
+import { renderSVG, renderTileSVG } from '../assets/js/render.js';
 import { makeState, encodeState, decodeState } from '../assets/js/state.js';
 import { PRESETS } from '../assets/js/presets.js';
 import { SCHEMES, THEMES } from '../assets/js/schemes.js';
@@ -57,4 +57,32 @@ test('share links round-trip', () => {
 test('text is escaped', () => {
   const svg = renderSVG(makeState({ title: '<script>alert(1)</script>' }), data);
   assert.doesNotMatch(svg, /<script>/);
+});
+
+test('every element renders as a single tile, with and without labels', () => {
+  const state = makeState({ corner: 'en', line: 'config' });
+  for (const el of data.elements) {
+    for (const annotate of [false, true]) {
+      const svg = renderTileSVG(el.z, state, data, { annotate });
+      assert.match(svg, /^<svg[^>]+viewBox="0 0 \d+ \d+"/);
+      assert.doesNotMatch(svg, /NaN|undefined/);
+    }
+  }
+});
+
+test('single tile matches the table settings and labels only visible parts', () => {
+  const state = makeState({ massDecimals: 1, fields: { name: false } });
+  const plain = renderTileSVG(26, state, data);
+  assert.match(plain, />Fe</);
+  assert.match(plain, />55\.8</);
+  assert.doesNotMatch(plain, /Atomic number/);
+  const labeled = renderTileSVG(26, state, data, { annotate: true });
+  for (const label of ['Atomic number', 'Symbol', 'Atomic mass (u)']) assert.match(labeled, new RegExp(`>${label.replace(/[()]/g, '\\$&')}<`));
+  assert.doesNotMatch(labeled, />Name</);
+});
+
+test('single tile can drop its highlight color', () => {
+  const state = makeState({ highlights: { 26: 1 } });
+  assert.match(renderTileSVG(26, state, data), /stroke-width="3"/);
+  assert.doesNotMatch(renderTileSVG(26, state, data, { highlight: false }), /stroke-width="3"/);
 });

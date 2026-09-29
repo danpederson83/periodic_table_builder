@@ -44,8 +44,8 @@ export async function svgToPngBlob(svg, scale = 2) {
   }
 }
 
-export async function downloadPNG(svg, name, scale) {
-  download(await svgToPngBlob(svg, scale), `${slugify(name)}@${scale}x.png`);
+export async function downloadPNG(svg, name, scale, suffix = `@${scale}x`) {
+  download(await svgToPngBlob(svg, scale), `${slugify(name)}${suffix}.png`);
 }
 
 export async function copyPNG(svg, scale) {

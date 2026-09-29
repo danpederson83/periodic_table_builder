@@ -18,6 +18,9 @@ Make custom, high-resolution periodic tables for lessons, slides and tests.
 - **Share links:** the URL encodes the whole table. Your last table is also saved in the browser.
 - **Inspect tool:** click an element to open a stats panel with its PubChem data and a link to
   PubChem.
+- **Single-tile images:** from the Inspect panel, save one element's tile as PNG or SVG (or copy
+  it) for a slide about that element. It uses the table's tile settings, and **Label the parts**
+  adds pointer labels for atomic number, symbol, name, mass and any extra values.
 - **Landing page** with a gallery of 16 starter tables. See [`docs/RESEARCH.md`](docs/RESEARCH.md)
   for why these were chosen.
 
@@ -90,7 +93,7 @@ hostname at `http://localhost:8080`.
 ```
 index.html              landing page and preset gallery
 builder.html            the editor
-assets/js/render.js     state + data → standalone SVG string (pure, also used in tests)
+assets/js/render.js     state + data → standalone SVG string, for the table or one tile (pure, also used in tests)
 assets/js/schemes.js    color schemes, themes, heatmap ramps
 assets/js/properties.js element properties shown on tiles and in heatmaps
 assets/js/presets.js    starter tables

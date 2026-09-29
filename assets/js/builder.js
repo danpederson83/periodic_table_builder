@@ -1,5 +1,5 @@
 import { loadData } from './data.js';
-import { renderSVG } from './render.js';
+import { renderSVG, renderTileSVG } from './render.js';
 import { SCHEMES, THEMES, RAMPS } from './schemes.js';
 import { PROPERTIES, CORNER_FIELDS, LINE_FIELDS, HEAT_FIELDS, displayValue } from './properties.js';
 import { PRESETS, presetById } from './presets.js';
@@ -16,6 +16,8 @@ let state;
 let tool = 'highlight';
 let current = 0; // palette index used by the highlight tool
 let inspected = null;
+// Options for exporting the inspected element's tile. Not part of the table, so not in share links.
+const tileOpts = { annotate: false, highlight: true, size: 600 };
 const undoStack = [];
 const redoStack = [];
 
@@ -168,6 +170,8 @@ function setupControls() {
   });
 
   $('#canvas').addEventListener('click', onCanvasClick);
+  $('#stats-body').addEventListener('change', onTileOption);
+  $('#stats-body').addEventListener('click', onTileExport);
   $('#stats-close').addEventListener('click', closeStats);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeStats();
@@ -302,14 +306,59 @@ function showStats(z) {
     ['Density', k(displayValue('density', el), 'g/cm³')],
     ['Discovered', k(el.year)],
   ];
+  const highlighted = state.palette[state.highlights[z]] != null;
   $('#stats-body').innerHTML = `
     <div class="stats-head">
       <div class="stats-tile"><span>${el.z}</span><b>${el.symbol}</b></div>
       <div><h2>${el.name}</h2><p>${el.category || ''}</p></div>
     </div>
+    <section class="tile-export" aria-label="Tile image">
+      <h3>Tile image</h3>
+      <div class="tile-preview">${tileSVG(z, { fluid: true })}</div>
+      <p class="hint">Matches the table's tile settings: fields, mass decimals, colors and theme.</p>
+      <label><input type="checkbox" data-tile-opt="annotate"${tileOpts.annotate ? ' checked' : ''}> Label the parts</label>
+      ${highlighted ? `<label><input type="checkbox" data-tile-opt="highlight"${tileOpts.highlight ? ' checked' : ''}> Use highlight color</label>` : ''}
+      <label class="tile-size">Tile width <select data-tile-opt="size">
+        ${[300, 600, 1200].map((px) => `<option value="${px}"${px === tileOpts.size ? ' selected' : ''}>${px} px</option>`).join('')}
+      </select></label>
+      <div class="tile-actions">
+        <button type="button" class="primary" data-tile-export="png">Download PNG</button>
+        <button type="button" data-tile-export="copy">Copy image</button>
+        <button type="button" data-tile-export="svg">SVG</button>
+      </div>
+    </section>
     <dl>${rows.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('')}</dl>
     <p class="stats-src">Source: <a href="https://pubchem.ncbi.nlm.nih.gov/element/${el.z}" target="_blank" rel="noopener">PubChem · ${el.name}</a></p>`;
   $('#stats').hidden = false;
+}
+
+// ---- tile export -----------------------------------------------------------
+
+function tileSVG(z, opts = {}) {
+  return renderTileSVG(z, state, data, { annotate: tileOpts.annotate, highlight: tileOpts.highlight, ...opts });
+}
+
+function tileName(z) {
+  return `${data.elements[z - 1].name} tile${tileOpts.annotate ? ' labeled' : ''}`;
+}
+
+function onTileOption(e) {
+  const key = e.target.dataset.tileOpt;
+  if (!key) return;
+  tileOpts[key] = e.target.type === 'checkbox' ? e.target.checked : Number(e.target.value);
+  if (key !== 'size') $('.tile-preview').innerHTML = tileSVG(inspected, { fluid: true });
+}
+
+async function onTileExport(e) {
+  const kind = e.target.closest('[data-tile-export]')?.dataset.tileExport;
+  if (!kind || !inspected) return;
+  const svg = tileSVG(inspected);
+  const scale = tileOpts.size / 96; // the tile is 96 units wide in the SVG
+  try {
+    if (kind === 'svg') downloadSVG(svg, tileName(inspected));
+    else if (kind === 'png') { await downloadPNG(svg, tileName(inspected), scale, `-${tileOpts.size}px`); status('Tile PNG downloaded'); }
+    else { await copyPNG(svg, scale); status('Tile copied. Paste it into your slides.'); }
+  } catch (err) { status(err.message); }
 }
 
 // ---- boot ------------------------------------------------------------------

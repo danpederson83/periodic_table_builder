@@ -183,8 +183,9 @@ function makeColorer(state, elements, theme) {
 
 // ---- tiles ---------------------------------------------------------------
 
-function tileSVG(t, state, theme, colorer, hl) {
-  const { el } = t;
+// Draws a tile's contents at the origin. `marks` records where each visible part sits
+// (x0–x1 across, y through its middle) so a single-tile export can point labels at them.
+function tileBody(el, state, theme, colorer, hl) {
   const hIdx = state.highlights[el.z];
   const palette = state.palette[hIdx];
   let c = colorer.base(el);
@@ -196,26 +197,34 @@ function tileSVG(t, state, theme, colorer, hl) {
   const f = state.fields;
 
   const parts = [];
+  const marks = [];
   parts.push(`<rect x="${strokeW / 2}" y="${strokeW / 2}" width="${W - strokeW}" height="${H - strokeW}" rx="4" fill="${c.fill}" stroke="${c.stroke}" stroke-width="${strokeW}"${c.dashed ? ' stroke-dasharray="4 3"' : ''}/>`);
 
   const showNum = f.number && (!blank || state.blankKeepsNumber);
-  if (showNum) parts.push(text(7, 17, el.z, { size: 13.5, weight: 500, fill: fg }));
+  if (showNum) {
+    parts.push(text(7, 17, el.z, { size: 13.5, weight: 500, fill: fg }));
+    marks.push({ key: 'number', x0: 7, x1: 7 + textWidth(el.z, 13.5), y: 17 - 13.5 * 0.35 });
+  }
 
   const cornerVal = !blank && state.corner !== 'none' ? displayValue(state.corner, el) : '';
-  if (cornerVal) parts.push(text(W - 6, 17, cornerVal, { size: fit(cornerVal, 12, W - (showNum ? 42 : 12), true), weight: 600, fill: fg, anchor: 'end' }));
+  if (cornerVal) {
+    const size = fit(cornerVal, 12, W - (showNum ? 42 : 12), true);
+    parts.push(text(W - 6, 17, cornerVal, { size, weight: 600, fill: fg, anchor: 'end' }));
+    marks.push({ key: 'corner', x0: W - 6 - textWidth(cornerVal, size, true), x1: W - 6, y: 17 - size * 0.35 });
+  }
 
   if (!blank) {
     const lines = [];
     const nameOrMass = f.name || f.mass || state.line !== 'none';
-    if (f.symbol) lines.push({ kind: 'symbol', str: el.symbol, size: nameOrMass ? 31 : 40, lh: nameOrMass ? 32 : 42, weight: 700 });
-    if (f.name) lines.push({ kind: 'text', str: el.name, size: 11.5, lh: 15 });
+    if (f.symbol) lines.push({ key: 'symbol', kind: 'symbol', str: el.symbol, size: nameOrMass ? 31 : 40, lh: nameOrMass ? 32 : 42, weight: 700 });
+    if (f.name) lines.push({ key: 'name', kind: 'text', str: el.name, size: 11.5, lh: 15 });
     if (f.mass && el.mass != null) {
       const dag = el.isotopeMass && state.showIsotopeNote ? '†' : '';
-      lines.push({ kind: 'text', str: el.mass.toFixed(state.massDecimals) + dag, size: 12, lh: 15 });
+      lines.push({ key: 'mass', kind: 'text', str: el.mass.toFixed(state.massDecimals) + dag, size: 12, lh: 15 });
     }
     if (state.line !== 'none') {
       const v = displayValue(state.line, el);
-      if (v) lines.push({ kind: state.line === 'config' ? 'config' : 'text', str: v, size: state.line === 'config' ? 12 : 11, lh: 15, weight: state.line === 'config' ? 400 : 600 });
+      if (v) lines.push({ key: 'line', kind: state.line === 'config' ? 'config' : 'text', str: v, size: state.line === 'config' ? 12 : 11, lh: 15, weight: state.line === 'config' ? 400 : 600 });
     }
     const top = showNum || cornerVal ? 20 : 6;
     const avail = H - 5 - top;
@@ -223,14 +232,28 @@ function tileSVG(t, state, theme, colorer, hl) {
     let y = top + Math.max(0, (avail - total) / 2);
     for (const l of lines) {
       const base = y + l.lh * (l.kind === 'symbol' ? 0.86 : 0.78);
-      if (l.kind === 'config') parts.push(configText(W / 2, base, l.str, l.size, fg, W - 8));
-      else parts.push(text(W / 2, base, l.str, { size: fit(l.str, l.size, W - 8, l.weight >= 600), weight: l.weight || 400, fill: fg, anchor: 'middle' }));
+      let w, size = l.size;
+      if (l.kind === 'config') {
+        parts.push(configText(W / 2, base, l.str, l.size, fg, W - 8));
+        w = Math.min(textWidth(l.str, l.size), W - 8);
+      } else {
+        size = fit(l.str, l.size, W - 8, l.weight >= 600);
+        parts.push(text(W / 2, base, l.str, { size, weight: l.weight || 400, fill: fg, anchor: 'middle' }));
+        w = textWidth(l.str, size, l.weight >= 600);
+      }
+      marks.push({ key: l.key, x0: W / 2 - w / 2, x1: W / 2 + w / 2, y: base - size * 0.35 });
       y += l.lh;
     }
   }
 
+  return { svg: parts.join(''), marks, dim };
+}
+
+function tileSVG(t, state, theme, colorer, hl) {
+  const { el } = t;
+  const body = tileBody(el, state, theme, colorer, hl);
   const title = `${el.name} (${el.symbol}), atomic number ${el.z}`;
-  return `<g class="el" data-z="${el.z}" transform="translate(${t.x},${t.y})"${dim ? ' opacity="0.28"' : ''}><title>${esc(title)}</title>${parts.join('')}</g>`;
+  return `<g class="el" data-z="${el.z}" transform="translate(${t.x},${t.y})"${body.dim ? ' opacity="0.28"' : ''}><title>${esc(title)}</title>${body.svg}</g>`;
 }
 
 function placeholderSVG(p, theme, state, hl) {
@@ -408,4 +431,70 @@ export function renderSVG(state, data, opts = {}) {
   const dims = opts.fluid ? '' : ` width="${L.width}" height="${height}"`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${L.width} ${height}"${dims} font-family="${esc(FONT)}" role="img" aria-label="${esc(state.title || 'Periodic table')}">` +
     bg + out.join('') + '</svg>';
+}
+
+// ---- single tile ---------------------------------------------------------
+
+// Which side of the tile each part's label goes on, and what it says.
+const TILE_LABELS = {
+  number: ['L', () => 'Atomic number'],
+  corner: ['R', (s) => capitalize(keyLabel(s.corner))],
+  symbol: ['R', () => 'Symbol'],
+  name: ['L', () => 'Name'],
+  mass: ['R', () => 'Atomic mass (u)'],
+  line: ['L', (s) => capitalize(keyLabel(s.line))],
+};
+const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// One element's tile, drawn exactly as it appears in the table, for slides.
+// opts.annotate adds labelled pointer lines to each part; opts.highlight: false drops a highlight color.
+// The SVG's natural width puts the tile at 96 px wide, so scale by (tile px / 96) when rasterising.
+export function renderTileSVG(z, state, data, opts = {}) {
+  const el = data.elements[z - 1];
+  const theme = THEMES[state.theme] || THEMES.light;
+  const s = opts.highlight === false ? { ...state, highlights: {} } : state;
+  const body = tileBody(el, s, theme, makeColorer(s, data.elements, theme), { any: false });
+  const P = 4; // room for the highlight stroke
+  const SIZE = 11, LH = 15, REACH = 28;
+
+  const labels = { L: [], R: [] };
+  if (opts.annotate) {
+    for (const m of body.marks) {
+      const [side, label] = TILE_LABELS[m.key];
+      labels[side].push({ ...m, label: label(s), ly: m.y });
+    }
+  }
+  // Spread labels on each side so they don't overlap, keeping them in top-to-bottom order.
+  let bottom = H;
+  const sideW = {};
+  for (const side of ['L', 'R']) {
+    const list = labels[side].sort((a, b) => a.y - b.y);
+    list.forEach((l, i) => { if (i) l.ly = Math.max(l.ly, list[i - 1].ly + LH); });
+    if (list.length) bottom = Math.max(bottom, list.at(-1).ly + SIZE);
+    // The width estimate runs a little narrow for bold labels, so pad it.
+    sideW[side] = list.length ? Math.max(...list.map((l) => textWidth(l.label, SIZE, true))) * 1.12 + REACH + 4 : 0;
+  }
+
+  const tx = P + sideW.L, ty = P;
+  const width = Math.ceil(tx + W + sideW.R + P);
+  const height = Math.ceil(ty + bottom + P);
+  const out = [];
+  for (const side of ['L', 'R']) {
+    for (const l of labels[side]) {
+      const ly = ty + l.ly;
+      const mid = (l.x0 + l.x1) / 2, half = ((l.x1 - l.x0) / 2) * 1.1;
+      const ax = side === 'L' ? tx + mid - half - 4 : tx + mid + half + 4;
+      const lx = side === 'L' ? tx - REACH : tx + W + REACH;
+      const ex = side === 'L' ? tx - 8 : tx + W + 8;
+      out.push(`<polyline points="${r1(lx + (side === 'L' ? 4 : -4))},${r1(ly)} ${r1(ex)},${r1(ly)} ${r1(ax)},${r1(ty + l.y)}" fill="none" stroke="${theme.muted}" stroke-width="1"/>`);
+      out.push(`<circle cx="${r1(ax)}" cy="${r1(ty + l.y)}" r="1.8" fill="${theme.muted}"/>`);
+      out.push(text(lx, ly + SIZE * 0.35, l.label, { size: SIZE, weight: 600, fill: theme.title, anchor: side === 'L' ? 'end' : 'start' }));
+    }
+  }
+
+  const bg = state.transparent ? '' : `<rect width="100%" height="100%" fill="${theme.bg}"/>`;
+  const dims = opts.fluid ? '' : ` width="${width}" height="${height}"`;
+  const label = `${el.name} (${el.symbol}) tile`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}"${dims} font-family="${esc(FONT)}" role="img" aria-label="${esc(label)}">` +
+    bg + `<g transform="translate(${tx},${ty})">${body.svg}</g>` + out.join('') + '</svg>';
 }
