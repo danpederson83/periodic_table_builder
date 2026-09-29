@@ -1,6 +1,6 @@
 import { loadData } from './data.js';
 import { renderSVG, renderTileSVG, tileColorsFor } from './render.js';
-import { renderBohrSVG, electronShells } from './bohr.js';
+import { renderBohrSVG, electronShells, chargeLabel } from './bohr.js';
 import { SCHEMES, THEMES, RAMPS } from './schemes.js';
 import { PROPERTIES, CORNER_FIELDS, LINE_FIELDS, HEAT_FIELDS, displayValue } from './properties.js';
 import { PRESETS, presetById } from './presets.js';
@@ -19,7 +19,8 @@ let current = 0; // palette index used by the highlight tool
 let inspected = null;
 // Options for exporting the inspected element's tile. Not part of the table, so not in share links.
 const tileOpts = { annotate: false, highlight: true, size: 600 };
-const bohrOpts = { caption: true };
+const bohrOpts = { caption: true, charge: 0 };
+const MIN_CHARGE = -4; // most added electrons offered (e.g. C⁴⁻)
 const undoStack = [];
 const redoStack = [];
 
@@ -175,6 +176,7 @@ function setupControls() {
   $('#stats-body').addEventListener('change', onTileOption);
   $('#stats-body').addEventListener('click', onTileExport);
   $('#stats-body').addEventListener('click', onBohrExport);
+  $('#stats-body').addEventListener('click', onBohrCharge);
   $('#stats-close').addEventListener('click', closeStats);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeStats();
@@ -284,6 +286,7 @@ function closeStats() {
 }
 
 function showStats(z) {
+  if (z !== inspected) bohrOpts.charge = 0; // a new element starts as a neutral atom
   inspected = z;
   const el = data.elements[z - 1];
   $$('#canvas .el.inspected').forEach((n) => n.classList.remove('inspected'));
@@ -333,6 +336,7 @@ function showStats(z) {
     <section class="tile-export" aria-label="Bohr model">
       <h3>Bohr model</h3>
       <div class="tile-preview bohr-preview">${bohrSVG(z, { fluid: true })}</div>
+      <div class="bohr-charge">${bohrChargeControls(z)}</div>
       <p class="hint">Electrons per shell, from the element's electron configuration. Outer-shell electrons are highlighted${el.block === 'd' || el.block === 'f' ? '. For d- and f-block elements, valence electrons can also include inner d or f electrons' : ''}.</p>
       <label><input type="checkbox" data-bohr-opt="caption"${bohrOpts.caption ? ' checked' : ''}> Show shell counts and key</label>
       <div class="tile-actions">
@@ -359,7 +363,7 @@ function tileName(z) {
 function onTileOption(e) {
   if (e.target.dataset.bohrOpt) {
     bohrOpts[e.target.dataset.bohrOpt] = e.target.checked;
-    $('.bohr-preview').innerHTML = bohrSVG(inspected, { fluid: true });
+    refreshBohr();
     return;
   }
   const key = e.target.dataset.tileOpt;
@@ -367,7 +371,7 @@ function onTileOption(e) {
   tileOpts[key] = e.target.type === 'checkbox' ? e.target.checked : Number(e.target.value);
   if (key !== 'size') $('.tile-preview').innerHTML = tileSVG(inspected, { fluid: true });
   // The Bohr nucleus follows the tile's color, so it also changes when the highlight is toggled.
-  if (key === 'highlight') $('.bohr-preview').innerHTML = bohrSVG(inspected, { fluid: true });
+  if (key === 'highlight') refreshBohr();
 }
 
 async function onTileExport(e) {
@@ -389,15 +393,47 @@ function bohrSVG(z, opts = {}) {
   return renderBohrSVG({
     z, symbol: el.symbol, name: el.name, shells: electronShells(el),
     theme: state.theme, transparent: state.transparent, caption: bohrOpts.caption,
-    nucleus: tileColorsFor(z, state, data, { highlight: tileOpts.highlight }), ...opts,
+    nucleus: tileColorsFor(z, state, data, { highlight: tileOpts.highlight }), charge: bohrOpts.charge, ...opts,
   });
+}
+
+// Buttons for turning the atom into an ion, with a line saying what it is now.
+function bohrChargeControls(z) {
+  const el = data.elements[z - 1];
+  const { charge } = bohrOpts;
+  const electrons = z - charge;
+  const kind = charge > 0 ? 'cation' : charge < 0 ? 'anion' : 'neutral atom';
+  return `
+    <p class="bohr-ion"><b>${el.symbol}${charge ? `<sup>${chargeLabel(charge)}</sup>` : ''}</b> ${kind} · ${electrons} electron${electrons === 1 ? '' : 's'}</p>
+    <div class="tile-actions">
+      <button type="button" data-bohr-charge="1"${charge >= z ? ' disabled' : ''} title="Take an electron away (makes a cation)">− Remove electron</button>
+      <button type="button" data-bohr-charge="-1"${charge <= MIN_CHARGE ? ' disabled' : ''} title="Give the atom an electron (makes an anion)">+ Add electron</button>
+      ${charge ? '<button type="button" data-bohr-charge="0">Neutral atom</button>' : ''}
+    </div>`;
+}
+
+function refreshBohr() {
+  $('.bohr-preview').innerHTML = bohrSVG(inspected, { fluid: true });
+  $('.bohr-charge').innerHTML = bohrChargeControls(inspected);
+}
+
+function onBohrCharge(e) {
+  const step = e.target.closest('[data-bohr-charge]')?.dataset.bohrCharge;
+  if (step == null || !inspected) return;
+  bohrOpts.charge = step === '0' ? 0 : Math.max(MIN_CHARGE, Math.min(inspected, bohrOpts.charge + Number(step)));
+  refreshBohr();
+  // The buttons were redrawn; keep keyboard focus on the one that was pressed.
+  const again = $(`[data-bohr-charge="${step}"]:not([disabled])`) || $('[data-bohr-charge]:not([disabled])');
+  again?.focus();
 }
 
 async function onBohrExport(e) {
   const kind = e.target.closest('[data-bohr-export]')?.dataset.bohrExport;
   if (!kind || !inspected) return;
   const svg = bohrSVG(inspected);
-  const name = `${data.elements[inspected - 1].name} Bohr model`;
+  const { charge } = bohrOpts;
+  const ion = charge ? ` ${Math.abs(charge)} ${charge > 0 ? 'plus' : 'minus'} ion` : '';
+  const name = `${data.elements[inspected - 1].name}${ion} Bohr model`;
   try {
     if (kind === 'svg') downloadSVG(svg, name);
     else if (kind === 'png') { await downloadPNG(svg, name, 3, ''); status('Bohr model PNG downloaded'); }

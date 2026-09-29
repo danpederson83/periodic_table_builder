@@ -23,7 +23,8 @@ Make custom, high-resolution periodic tables for lessons, slides and tests.
   adds pointer labels for atomic number, symbol, name, mass and any extra values.
 - **Bohr models:** the Inspect panel also draws a Bohr-style shell diagram for the element, with
   the outer-shell (valence) electrons highlighted. You can export it as PNG or SVG, or copy it.
-  Shell counts come from the element's electron configuration.
+  Shell counts come from the element's electron configuration. Add or remove electrons to draw
+  an ion (Na⁺, Cl⁻, O²⁻, Fe²⁺ …): cations lose electrons from the outermost shell first.
 - **Landing page** with a gallery of 16 starter tables. See [`docs/RESEARCH.md`](docs/RESEARCH.md)
   for why these were chosen.
 

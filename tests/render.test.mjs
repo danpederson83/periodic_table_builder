@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { renderSVG, renderTileSVG, tileColorsFor } from '../assets/js/render.js';
 import { makeState, encodeState, decodeState } from '../assets/js/state.js';
-import { renderBohrSVG, electronShells, shellsFromConfig, aufbauShells } from '../assets/js/bohr.js';
+import { renderBohrSVG, electronShells, shellsFromConfig, aufbauShells, ionShells, chargeLabel } from '../assets/js/bohr.js';
 import { PRESETS } from '../assets/js/presets.js';
 import { SCHEMES, THEMES } from '../assets/js/schemes.js';
 
@@ -149,4 +149,28 @@ test('Bohr nucleus takes the color of the element tile', () => {
       }
     }
   }
+});
+
+test('ions gain or lose electrons in the right shells', () => {
+  const cases = { Na: [1, [2, 8]], Mg: [2, [2, 8]], Al: [3, [2, 8]], Cl: [-1, [2, 8, 8]], O: [-2, [2, 8]], N: [-3, [2, 8]], H: [1, []], Fe: [2, [2, 8, 14]], Cu: [1, [2, 8, 18]] };
+  for (const [sym, [charge, shells]] of Object.entries(cases)) {
+    const el = bySymbol(sym);
+    assert.deepEqual(ionShells(electronShells(el), charge, el.z), shells, `${sym} ${chargeLabel(charge)}`);
+  }
+  assert.deepEqual(['+', '2+', '−', '3−', ''].map(String), [1, 2, -1, -3, 0].map(chargeLabel));
+});
+
+test('Bohr diagram of an ion shows its charge and electron count', () => {
+  for (const [sym, charge, ion] of [['Na', 1, '+'], ['Cl', -1, '−'], ['O', -2, '2−'], ['Mg', 2, '2+'], ['H', 1, '+']]) {
+    const el = bySymbol(sym);
+    const svg = renderBohrSVG({ z: el.z, symbol: el.symbol, name: el.name, shells: electronShells(el), charge });
+    assert.equal(count(svg, /class="(valence|core)"/g), el.z - charge, `${sym} electrons`);
+    const esc = ion.replace('+', '\\+');
+    assert.match(svg, new RegExp(`>${sym}<tspan[^>]*>${esc}</tspan></text>`), `${sym} label`);
+    assert.match(svg, new RegExp(`${el.name} ion ${sym}${esc}`), `${sym} caption`);
+    assert.match(svg, new RegExp(`${el.z} protons?, ${el.z - charge} electrons?: charge ${charge > 0 ? '\\+' : '−'}${Math.abs(charge)}`));
+    assert.doesNotMatch(svg, /NaN|undefined/);
+  }
+  // A neutral atom has no charge mark.
+  assert.doesNotMatch(renderBohrSVG({ z: 11, symbol: 'Na', shells: [2, 8, 1] }), /tspan|charge/);
 });

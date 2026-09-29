@@ -50,6 +50,34 @@ export function electronShells(el) {
   return el.shells || shellsFromConfig(el.config, el.z) || aufbauShells(el.z);
 }
 
+// Electrons per shell after the atom loses (charge > 0) or gains (charge < 0) electrons.
+// Electrons leave from the outermost shell first, so Fe²⁺ loses its 4s pair rather than 3d ones.
+// Gained electrons continue the filling order (past element 118 they join the outer shell).
+export function ionShells(shells, charge, z) {
+  if (!charge) return shells;
+  const out = [...shells];
+  if (charge > 0) {
+    for (let left = Math.min(charge, z); left > 0 && out.length;) {
+      const take = Math.min(left, out.at(-1));
+      out[out.length - 1] -= take;
+      left -= take;
+      if (!out.at(-1)) out.pop();
+    }
+    return out;
+  }
+  const total = z - charge;
+  if (total <= 118) return aufbauShells(total);
+  out[out.length - 1] -= charge;
+  return out;
+}
+
+// Charge as written on an ion: 1 → "+", 2 → "2+", -1 → "−", -3 → "3−".
+export function chargeLabel(charge) {
+  if (!charge) return '';
+  const size = Math.abs(charge);
+  return `${size === 1 ? '' : size}${charge > 0 ? '+' : '−'}`;
+}
+
 function colors(theme) {
   if (theme.gray) {
     return { ring: '#555555', nucleus: '#e6e6e6', nucleusStroke: '#000000', core: '#ffffff', coreStroke: '#000000', valence: '#000000', valenceStroke: '#000000' };
@@ -69,14 +97,18 @@ function colors(theme) {
 // Renders the diagram. Inputs: z and symbol (required); shells (electrons per shell, inner first)
 // or config (an electron configuration string) — shells are calculated if neither is usable.
 // Options: name, theme ('light' | 'dark' | 'print'), transparent, caption (default true), fluid,
-// nucleus ({ fill, stroke } to color the nucleus like the element's tile).
-export function renderBohrSVG({ z, symbol, name = '', shells, config, theme: themeKey = 'light', transparent = false, caption = true, fluid = false, nucleus }) {
+// nucleus ({ fill, stroke } to color the nucleus like the element's tile), charge (draws an ion:
+// positive removes electrons, negative adds them).
+export function renderBohrSVG({ z, symbol, name = '', shells, config, theme: themeKey = 'light', transparent = false, caption = true, fluid = false, nucleus, charge = 0 }) {
   const theme = THEMES[themeKey] || THEMES.light;
   const c = colors(theme);
   if (nucleus) Object.assign(c, { nucleus: nucleus.fill, nucleusStroke: nucleus.stroke });
-  const pop = shells?.length ? shells : shellsFromConfig(config, z) || aufbauShells(z);
+  charge = Math.min(z, Math.trunc(charge) || 0); // can't remove more electrons than there are
+  const pop = ionShells(shells?.length ? shells : shellsFromConfig(config, z) || aufbauShells(z), charge, z);
   const n = pop.length;
-  const outer = pop[n - 1];
+  const outer = pop[n - 1] || 0;
+  const electrons = z - charge;
+  const ion = chargeLabel(charge);
 
   // Fixed canvas, so every element's diagram is the same size on a slide.
   const R = 170, NUC = 34;
@@ -90,9 +122,12 @@ export function renderBohrSVG({ z, symbol, name = '', shells, config, theme: the
     out.push(`<circle cx="${cx}" cy="${cy}" r="${r1(r)}" fill="none" stroke="${c.ring}" stroke-width="2"/>`);
   });
 
-  const nucSize = Math.min(34, (NUC * 1.5) / Math.max(1, symbol.length * 0.62));
+  // An ion's charge is written as a superscript after the symbol, e.g. Na⁺ or O²⁻. The symbol keeps
+  // the neutral atom's baseline so it stays vertically centered; the superscript rises above it.
+  const nucSize = Math.min(34, (NUC * 1.5) / Math.max(1, (symbol.length + ion.length * 0.6) * 0.62));
+  const sup = ion ? `<tspan dy="-0.75em" font-size="60%">${ion}</tspan>` : '';
   out.push(`<circle cx="${cx}" cy="${cy}" r="${NUC}" fill="${c.nucleus}" stroke="${c.nucleusStroke}" stroke-width="2.5"/>`);
-  out.push(`<text x="${cx}" y="${r1(cy + nucSize * 0.36)}" font-size="${r1(nucSize)}" font-weight="800" fill="${nucleus ? textOn(c.nucleus, theme) : theme.title}" text-anchor="middle">${esc(symbol)}</text>`);
+  out.push(`<text x="${cx}" y="${r1(cy + nucSize * 0.36)}" font-size="${r1(nucSize)}" font-weight="800" fill="${nucleus ? textOn(c.nucleus, theme) : theme.title}" text-anchor="middle">${esc(symbol)}${sup}</text>`);
 
   pop.forEach((count, i) => {
     const r = NUC + step * (i + 1);
@@ -113,20 +148,23 @@ export function renderBohrSVG({ z, symbol, name = '', shells, config, theme: the
     const plural = (k) => `${k} electron${k === 1 ? '' : 's'}`;
     // Rough width of sans-serif text, to shrink a long caption rather than clip it.
     const est = (str, size) => str.length * size * 0.6;
-    const head = `${name ? `${name}: ` : ''}${pop.join(', ')}`;
+    const title = ion ? `${name ? `${name} ion ` : ''}${symbol}${ion}` : name;
+    const head = `${title ? `${title}: ` : ''}${pop.join(', ') || 'no electrons'}`;
     const headSize = Math.min(20, (W - 24) / (est(head, 1) * 1.08));
     let y = H + 12;
     out.push(`<text x="${cx}" y="${y}" font-size="${r1(headSize)}" font-weight="700" fill="${theme.title}" text-anchor="middle">${esc(head)}</text>`);
-    const inner = z - outer;
+    const inner = electrons - outer;
     const legend = [
-      [c.valence, c.valenceStroke, 7, `Outer shell: ${plural(outer)}`],
+      ...(outer ? [[c.valence, c.valenceStroke, 7, `Outer shell: ${plural(outer)}`]] : []),
       ...(inner ? [[c.core, c.coreStroke, 5, `Inner shells: ${plural(inner)}`]] : []),
+      // For an ion, show where the charge comes from.
+      ...(ion ? [[null, 'none', 0, `${z} proton${z === 1 ? '' : 's'}, ${plural(electrons)}: charge ${charge > 0 ? '+' : '−'}${Math.abs(charge)}`]] : []),
     ];
     // Stack the legend rows, left-aligned as a block centered under the diagram.
     const x = cx - (Math.max(...legend.map((l) => est(l[3], 16))) + 18) / 2 + 7;
     for (const [fill, stroke, r, label] of legend) {
       y += 28;
-      out.push(`<circle cx="${r1(x)}" cy="${y - 6}" r="${r}" fill="${fill}"${stroke !== 'none' ? ` stroke="${stroke}" stroke-width="1.5"` : ''}/>`);
+      if (fill) out.push(`<circle cx="${r1(x)}" cy="${y - 6}" r="${r}" fill="${fill}"${stroke !== 'none' ? ` stroke="${stroke}" stroke-width="1.5"` : ''}/>`);
       out.push(`<text x="${r1(x + 14)}" y="${y}" font-size="16" fill="${theme.text}">${esc(label)}</text>`);
     }
     H = y + 18;
@@ -134,6 +172,7 @@ export function renderBohrSVG({ z, symbol, name = '', shells, config, theme: the
 
   const bg = transparent ? '' : `<rect width="100%" height="100%" fill="${theme.bg}"/>`;
   const dims = fluid ? '' : ` width="${W}" height="${H}"`;
-  const label = `Bohr model of ${name || symbol}: ${pop.join(', ')} electrons per shell, ${outer} in the outer shell`;
+  const who = ion ? `${name ? `${name} ion ` : ''}${symbol}${ion}` : name || symbol;
+  const label = `Bohr model of ${who}: ${electrons ? `${pop.join(', ')} electrons per shell, ${outer} in the outer shell` : 'no electrons'}`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}"${dims} font-family="${esc(FONT)}" role="img" aria-label="${esc(label)}"><title>${esc(label)}</title>${bg}${out.join('')}</svg>`;
 }
