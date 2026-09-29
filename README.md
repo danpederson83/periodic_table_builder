@@ -58,6 +58,10 @@ npm run data:offline   # rebuild from the bundled copy, data/PubChemElements_all
 Notes:
 
 - PubChem's `AtomicRadius` is the **van der Waals** radius, and the app labels it that way.
+- Atomic masses are IUPAC/CIAAW standard atomic weights, set in `scripts/build-data.mjs`,
+  because PubChem rounds some of them coarsely (it lists lithium as 7.0, not 6.94). Where
+  CIAAW gives a range (H, Li, B, C, N, O, Mg, Si, S, Cl, Ar, Br, Tl, Pb), the conventional
+  value is used.
 - Elements with no standard atomic weight (Tc, Pm, Po and heavier, except Th, Pa and U) are
   marked with † because their listed mass is for a selected isotope.
 - The bundled CSV came from a mirror of PubChem's `PubChemElements_all.csv` export, because

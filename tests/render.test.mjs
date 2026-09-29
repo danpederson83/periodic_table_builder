@@ -18,6 +18,14 @@ test('dataset has 118 elements with positions', () => {
   assert.equal(data.elements.find((el) => el.symbol === 'Og').group, 18);
 });
 
+test('masses are standard atomic weights, not PubChem rounding', () => {
+  const mass = (sym) => data.elements.find((el) => el.symbol === sym).mass;
+  assert.equal(mass('Li'), 6.94);
+  assert.equal(mass('Ar'), 39.95);
+  assert.equal(mass('Pb'), 207.2);
+  assert.equal(mass('Tc'), 96.90636);
+});
+
 for (const p of PRESETS) {
   test(`preset "${p.id}" renders every element`, () => {
     const svg = renderSVG(makeState(p.state), data);

@@ -21,6 +21,27 @@ const PUBCHEM_JSON = 'https://pubchem.ncbi.nlm.nih.gov/rest/pug/periodictable/JS
 // standard atomic weights, so they are not included.
 const ISOTOPE_MASS = new Set([43, 61, 84, 85, 86, 87, 88, 89, ...range(93, 118)]);
 
+// IUPAC/CIAAW standard atomic weights (ciaaw.org, including the 2024 revisions to Zr, Gd
+// and Lu). PubChem rounds some of these coarsely (Li is listed as 7.0), so they replace
+// PubChem's AtomicMass for every element that has one. Where CIAAW gives an interval
+// (H, Li, B, C, N, O, Mg, Si, S, Cl, Ar, Br, Tl, Pb) this is its conventional value.
+const STANDARD_ATOMIC_WEIGHT = {
+  1: 1.008, 2: 4.002602, 3: 6.94, 4: 9.0121831, 5: 10.81, 6: 12.011, 7: 14.007,
+  8: 15.999, 9: 18.998403162, 10: 20.1797, 11: 22.98976928, 12: 24.305, 13: 26.9815384,
+  14: 28.085, 15: 30.973761998, 16: 32.06, 17: 35.45, 18: 39.95, 19: 39.0983, 20: 40.078,
+  21: 44.955907, 22: 47.867, 23: 50.9415, 24: 51.9961, 25: 54.938043, 26: 55.845,
+  27: 58.933194, 28: 58.6934, 29: 63.546, 30: 65.38, 31: 69.723, 32: 72.630, 33: 74.921595,
+  34: 78.971, 35: 79.904, 36: 83.798, 37: 85.4678, 38: 87.62, 39: 88.905838, 40: 91.222,
+  41: 92.90637, 42: 95.95, 44: 101.07, 45: 102.90549, 46: 106.42, 47: 107.8682, 48: 112.414,
+  49: 114.818, 50: 118.710, 51: 121.760, 52: 127.60, 53: 126.90447, 54: 131.293,
+  55: 132.90545196, 56: 137.327, 57: 138.90547, 58: 140.116, 59: 140.90766, 60: 144.242,
+  62: 150.36, 63: 151.964, 64: 157.249, 65: 158.925354, 66: 162.500, 67: 164.930329,
+  68: 167.259, 69: 168.934219, 70: 173.045, 71: 174.96669, 72: 178.486, 73: 180.94788,
+  74: 183.84, 75: 186.207, 76: 190.23, 77: 192.217, 78: 195.084, 79: 196.966570,
+  80: 200.592, 81: 204.38, 82: 207.2, 83: 208.98040, 90: 232.0377, 91: 231.03588,
+  92: 238.02891,
+};
+
 function range(a, b) {
   return Array.from({ length: b - a + 1 }, (_, i) => a + i);
 }
@@ -111,7 +132,7 @@ async function main() {
       z,
       symbol: r.Symbol,
       name: r.Name,
-      mass: num(r.AtomicMass),
+      mass: STANDARD_ATOMIC_WEIGHT[z] ?? num(r.AtomicMass),
       isotopeMass: ISOTOPE_MASS.has(z),
       group,
       period: periodOf(z),
@@ -133,6 +154,9 @@ async function main() {
   }).sort((a, b) => a.z - b.z);
 
   if (elements.length !== 118) throw new Error(`Expected 118 elements, got ${elements.length}`);
+  for (const el of elements) {
+    if (!el.isotopeMass && !(el.z in STANDARD_ATOMIC_WEIGHT)) throw new Error(`No standard atomic weight for ${el.symbol}`);
+  }
 
   const out = {
     meta: {
@@ -144,6 +168,7 @@ async function main() {
       notes: [
         'AtomicRadius in PubChem is the van der Waals radius (pm).',
         'IonizationEnergy and ElectronAffinity are in eV; MeltingPoint and BoilingPoint in K; Density in g/cm³.',
+        'Masses are IUPAC/CIAAW standard atomic weights (conventional values where CIAAW gives an interval); PubChem is used only for isotopeMass elements.',
         'isotopeMass marks elements whose listed mass is for a selected isotope rather than a standard atomic weight.',
       ],
     },
