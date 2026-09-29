@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bond Builder · Periodic Table Builder</title>
+  <meta name="description" content="Pick two elements and see the ionic or covalent bond they form, drawn with Bohr models before and after bonding. Export SVG or PNG.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body class="builder bonds">
+  <header class="topbar">
+    <div class="topbar-left">
+      <a class="brand" href="./"><span class="brand-tile">Pt</span><span>Periodic Table Builder</span></a>
+      <nav class="tool-nav" aria-label="Tools">
+        <a href="builder.html">Tables</a>
+        <a href="bonds.html" aria-current="page">Bonds</a>
+      </nav>
+    </div>
+    <div class="top-actions">
+      <span class="status" id="status" role="status"></span>
+      <button type="button" id="share">Copy link</button>
+      <button type="button" id="dl-svg">SVG</button>
+      <span class="split">
+        <button type="button" id="dl-png" class="primary">Download PNG</button>
+        <select id="png-scale" aria-label="PNG resolution">
+          <option value="1">1×</option>
+          <option value="2" selected>2×</option>
+          <option value="3">3×</option>
+        </select>
+      </span>
+      <button type="button" id="copy-png" title="Copy PNG to clipboard, then paste into your slides">Copy image</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="panel" id="panel">
+      <section>
+        <h2>Elements</h2>
+        <label>First element <select id="el-a" data-bind="a"></select></label>
+        <label>Second element <select id="el-b" data-bind="b"></select></label>
+        <p class="hint">Pick the same element twice for molecules like H₂, O₂ and Cl₂. Bonds are drawn for groups 1, 2 and 13–17. Transition metals form ions of more than one charge, so they aren’t drawn.</p>
+      </section>
+
+      <section>
+        <h2>Examples</h2>
+        <div class="examples" id="examples"></div>
+      </section>
+
+      <section>
+        <h2>Diagram</h2>
+        <label>Show <select data-bind="view">
+          <option value="both">Before and after</option>
+          <option value="before">Before bonding</option>
+          <option value="after">After bonding</option>
+        </select></label>
+        <label>Electrons <select data-bind="marks">
+          <option value="color">Colored dots</option>
+          <option value="cross">Dot and cross</option>
+        </select></label>
+        <label>Theme <select data-bind="theme" id="theme"></select></label>
+        <div class="checks">
+          <label><input type="checkbox" data-bind="labels"> Title, headings and key</label>
+          <label><input type="checkbox" data-bind="transparent"> Transparent background</label>
+        </div>
+      </section>
+    </aside>
+
+    <main class="stage">
+      <div class="canvas bond-canvas">
+        <div id="diagram" class="bond-diagram"><p class="loading">Loading element data…</p></div>
+        <section id="explain" class="explain" hidden></section>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="assets/js/bonds.js"></script>
+</body>
+</html>

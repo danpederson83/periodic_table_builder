@@ -29,6 +29,19 @@ Make custom, high-resolution periodic tables for lessons, slides and tests.
   symbol with its valence electrons as dots, one per side before pairing. It works with ions too:
   anions are bracketed with a full octet ([:Cl:]⁻), and a cation that loses its outer shell has no
   dots (Na⁺).
+- **Bond builder** (`bonds.html`): pick two elements and see the bond they form, drawn with Bohr
+  models before and after bonding.
+  - **Ionic** (a metal with a nonmetal): arrows show electrons moving from the metal into dashed
+    spaces in the nonmetal's outer shell; afterwards the ions are drawn in brackets with their
+    charges. The ratio is worked out from the charges, so Mg + Cl draws MgCl₂ and Al + O draws Al₂O₃.
+  - **Covalent** (two nonmetals, or the same one twice): the outer shells overlap, with shared pairs in
+    the overlap and lone pairs around the rest. It handles single, double and triple bonds (H₂, O₂, N₂)
+    and one central atom (H₂O, NH₃, CH₄, CO₂, BF₃…).
+  - Each element's electrons get their own color, or a dot-and-cross style. An explanation under the
+    diagram covers valence electrons, ion charges, the formula and the electronegativity difference.
+  - Groups 1, 2 and 13–17 only. Transition metals, noble gases, metal–metal pairs and giant structures
+    (SiO₂, diamond) get a short explanation instead of a drawing. The link recreates the diagram
+    (`bonds.html#a=Mg&b=O`), and it exports to SVG and PNG like the tables.
 - **Landing page** with a gallery of 16 starter tables. See [`docs/RESEARCH.md`](docs/RESEARCH.md)
   for why these were chosen.
 

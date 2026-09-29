@@ -78,7 +78,7 @@ export function chargeLabel(charge) {
   return `${size === 1 ? '' : size}${charge > 0 ? '+' : '−'}`;
 }
 
-function colors(theme) {
+export function bohrColors(theme) {
   if (theme.gray) {
     return { ring: '#555555', nucleus: '#e6e6e6', nucleusStroke: '#000000', core: '#ffffff', coreStroke: '#000000', valence: '#000000', valenceStroke: '#000000' };
   }
@@ -101,7 +101,7 @@ function colors(theme) {
 // positive removes electrons, negative adds them).
 export function renderBohrSVG({ z, symbol, name = '', shells, config, theme: themeKey = 'light', transparent = false, caption = true, fluid = false, nucleus, charge = 0 }) {
   const theme = THEMES[themeKey] || THEMES.light;
-  const c = colors(theme);
+  const c = bohrColors(theme);
   if (nucleus) Object.assign(c, { nucleus: nucleus.fill, nucleusStroke: nucleus.stroke });
   charge = Math.min(z, Math.trunc(charge) || 0); // can't remove more electrons than there are
   const pop = ionShells(shells?.length ? shells : shellsFromConfig(config, z) || aufbauShells(z), charge, z);
