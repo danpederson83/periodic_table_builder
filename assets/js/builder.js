@@ -1,6 +1,7 @@
 import { loadData } from './data.js';
 import { renderSVG, renderTileSVG, tileColorsFor } from './render.js';
 import { renderBohrSVG, electronShells, chargeLabel } from './bohr.js';
+import { renderLewisSVG } from './lewis.js';
 import { SCHEMES, THEMES, RAMPS } from './schemes.js';
 import { PROPERTIES, CORNER_FIELDS, LINE_FIELDS, HEAT_FIELDS, displayValue } from './properties.js';
 import { PRESETS, presetById } from './presets.js';
@@ -19,7 +20,9 @@ let current = 0; // palette index used by the highlight tool
 let inspected = null;
 // Options for exporting the inspected element's tile. Not part of the table, so not in share links.
 const tileOpts = { annotate: false, highlight: true, size: 600 };
-const bohrOpts = { caption: true, charge: 0 };
+// The atom diagram is a Bohr model or an electron dot diagram; both share the charge and caption.
+const bohrOpts = { kind: 'bohr', caption: true, charge: 0 };
+const DIAGRAMS = { bohr: 'Bohr model', dot: 'Electron dot diagram' };
 const MIN_CHARGE = -4; // most added electrons offered (e.g. C⁴⁻)
 const undoStack = [];
 const redoStack = [];
@@ -177,6 +180,7 @@ function setupControls() {
   $('#stats-body').addEventListener('click', onTileExport);
   $('#stats-body').addEventListener('click', onBohrExport);
   $('#stats-body').addEventListener('click', onBohrCharge);
+  $('#stats-body').addEventListener('click', onDiagramKind);
   $('#stats-close').addEventListener('click', closeStats);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeStats();
@@ -333,12 +337,15 @@ function showStats(z) {
         <button type="button" data-tile-export="svg">SVG</button>
       </div>
     </section>
-    <section class="tile-export" aria-label="Bohr model">
-      <h3>Bohr model</h3>
+    <section class="tile-export" aria-label="Atom diagram">
+      <h3>Atom diagram</h3>
+      <div class="seg diagram-kind" role="group" aria-label="Diagram type">
+        ${Object.entries(DIAGRAMS).map(([kind, label]) => `<button type="button" data-bohr-kind="${kind}" aria-pressed="${kind === bohrOpts.kind}"${kind === bohrOpts.kind ? ' class="active"' : ''}>${label.replace(' diagram', '')}</button>`).join('')}
+      </div>
       <div class="tile-preview bohr-preview">${bohrSVG(z, { fluid: true })}</div>
       <div class="bohr-charge">${bohrChargeControls(z)}</div>
-      <p class="hint">Electrons per shell, from the element's electron configuration. Outer-shell electrons are highlighted${el.block === 'd' || el.block === 'f' ? '. For d- and f-block elements, valence electrons can also include inner d or f electrons' : ''}.</p>
-      <label><input type="checkbox" data-bohr-opt="caption"${bohrOpts.caption ? ' checked' : ''}> Show shell counts and key</label>
+      <p class="hint bohr-hint">${diagramHint(el)}</p>
+      <label><input type="checkbox" data-bohr-opt="caption"${bohrOpts.caption ? ' checked' : ''}> Show caption</label>
       <div class="tile-actions">
         <button type="button" class="primary" data-bohr-export="png">Download PNG</button>
         <button type="button" data-bohr-export="copy">Copy image</button>
@@ -390,6 +397,12 @@ async function onTileExport(e) {
 
 function bohrSVG(z, opts = {}) {
   const el = data.elements[z - 1];
+  if (bohrOpts.kind === 'dot') {
+    return renderLewisSVG({
+      z, symbol: el.symbol, name: el.name, shells: electronShells(el),
+      theme: state.theme, transparent: state.transparent, caption: bohrOpts.caption, charge: bohrOpts.charge, ...opts,
+    });
+  }
   return renderBohrSVG({
     z, symbol: el.symbol, name: el.name, shells: electronShells(el),
     theme: state.theme, transparent: state.transparent, caption: bohrOpts.caption,
@@ -410,6 +423,27 @@ function bohrChargeControls(z) {
       <button type="button" data-bohr-charge="-1"${charge <= MIN_CHARGE ? ' disabled' : ''} title="Give the atom an electron (makes an anion)">+ Add electron</button>
       ${charge ? '<button type="button" data-bohr-charge="0">Neutral atom</button>' : ''}
     </div>`;
+}
+
+function diagramHint(el) {
+  const inner = el.block === 'd' || el.block === 'f';
+  if (bohrOpts.kind === 'dot') {
+    return `Valence electrons as dots, one per side before pairing. Ions are drawn in brackets with their charge; a cation that loses its whole outer shell has no dots${inner ? '. For d- and f-block elements only the outer s electrons are shown' : ''}.`;
+  }
+  return `Electrons per shell, from the element's electron configuration. Outer-shell electrons are highlighted${inner ? '. For d- and f-block elements, valence electrons can also include inner d or f electrons' : ''}.`;
+}
+
+function onDiagramKind(e) {
+  const kind = e.target.closest('[data-bohr-kind]')?.dataset.bohrKind;
+  if (!kind || !inspected || kind === bohrOpts.kind) return;
+  bohrOpts.kind = kind;
+  $$('[data-bohr-kind]').forEach((b) => {
+    const on = b.dataset.bohrKind === kind;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', on);
+  });
+  $('.bohr-hint').textContent = diagramHint(data.elements[inspected - 1]);
+  refreshBohr();
 }
 
 function refreshBohr() {
@@ -433,11 +467,12 @@ async function onBohrExport(e) {
   const svg = bohrSVG(inspected);
   const { charge } = bohrOpts;
   const ion = charge ? ` ${Math.abs(charge)} ${charge > 0 ? 'plus' : 'minus'} ion` : '';
-  const name = `${data.elements[inspected - 1].name}${ion} Bohr model`;
+  const what = DIAGRAMS[bohrOpts.kind];
+  const name = `${data.elements[inspected - 1].name}${ion} ${what.toLowerCase().replace('bohr', 'Bohr')}`;
   try {
     if (kind === 'svg') downloadSVG(svg, name);
-    else if (kind === 'png') { await downloadPNG(svg, name, 3, ''); status('Bohr model PNG downloaded'); }
-    else { await copyPNG(svg, 3); status('Bohr model copied. Paste it into your slides.'); }
+    else if (kind === 'png') { await downloadPNG(svg, name, 3, ''); status(`${what} PNG downloaded`); }
+    else { await copyPNG(svg, 3); status(`${what} copied. Paste it into your slides.`); }
   } catch (err) { status(err.message); }
 }
 

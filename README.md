@@ -25,6 +25,10 @@ Make custom, high-resolution periodic tables for lessons, slides and tests.
   the outer-shell (valence) electrons highlighted. You can export it as PNG or SVG, or copy it.
   Shell counts come from the element's electron configuration. Add or remove electrons to draw
   an ion (Na⁺, Cl⁻, O²⁻, Fe²⁺ …): cations lose electrons from the outermost shell first.
+- **Electron dot diagrams:** switch the same section to an electron dot (Lewis) diagram: the
+  symbol with its valence electrons as dots, one per side before pairing. It works with ions too:
+  anions are bracketed with a full octet ([:Cl:]⁻), and a cation that loses its outer shell has no
+  dots (Na⁺).
 - **Landing page** with a gallery of 16 starter tables. See [`docs/RESEARCH.md`](docs/RESEARCH.md)
   for why these were chosen.
 
@@ -99,6 +103,7 @@ index.html              landing page and preset gallery
 builder.html            the editor
 assets/js/render.js     state + data → standalone SVG string, for the table or one tile (pure, also used in tests)
 assets/js/bohr.js       electron shells + Bohr model SVG (pure, also used in tests)
+assets/js/lewis.js      electron dot (Lewis) diagram SVG (pure, also used in tests)
 assets/js/schemes.js    color schemes, themes, heatmap ramps
 assets/js/properties.js element properties shown on tiles and in heatmaps
 assets/js/presets.js    starter tables

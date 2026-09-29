@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { renderSVG, renderTileSVG, tileColorsFor } from '../assets/js/render.js';
 import { makeState, encodeState, decodeState } from '../assets/js/state.js';
 import { renderBohrSVG, electronShells, shellsFromConfig, aufbauShells, ionShells, chargeLabel } from '../assets/js/bohr.js';
+import { renderLewisSVG, dotCount } from '../assets/js/lewis.js';
 import { PRESETS } from '../assets/js/presets.js';
 import { SCHEMES, THEMES } from '../assets/js/schemes.js';
 
@@ -173,4 +174,47 @@ test('Bohr diagram of an ion shows its charge and electron count', () => {
   }
   // A neutral atom has no charge mark.
   assert.doesNotMatch(renderBohrSVG({ z: 11, symbol: 'Na', shells: [2, 8, 1] }), /tspan|charge/);
+});
+
+test('electron dot diagrams show the valence electrons', () => {
+  const cases = { H: 1, He: 2, Li: 1, B: 3, C: 4, N: 5, O: 6, Cl: 7, Ne: 8, Ar: 8, Ca: 2, Fe: 2, Ga: 3, Pb: 4 };
+  for (const [sym, dots] of Object.entries(cases)) {
+    const el = bySymbol(sym);
+    const svg = renderLewisSVG({ z: el.z, symbol: el.symbol, name: el.name, shells: electronShells(el) });
+    assert.equal(count(svg, /class="dot"/g), dots, sym);
+    assert.match(svg, new RegExp(`>${sym}</text>`));
+    assert.match(svg, new RegExp(`${el.name}: ${dots} valence electrons?`));
+    assert.doesNotMatch(svg, /<path/, `${sym} has no brackets`);
+  }
+  // Helium's pair sits together on one side; carbon's four electrons take one side each.
+  const cys = (svg) => new Set([...svg.matchAll(/class="dot" cx="[\d.]+" cy="([\d.]+)"/g)].map((m) => m[1]));
+  assert.equal(cys(renderLewisSVG({ z: 2, symbol: 'He', shells: [2] })).size, 1);
+  assert.equal(cys(renderLewisSVG({ z: 6, symbol: 'C', shells: [2, 4] })).size, 3);
+});
+
+test('electron dot diagrams of ions', () => {
+  // [symbol, charge, dots, bracketed]
+  for (const [sym, charge, dots, bracket] of [['Na', 1, 0, false], ['Mg', 2, 0, false], ['Fe', 3, 0, false], ['Cl', -1, 8, true], ['O', -2, 8, true], ['N', -3, 8, true], ['H', -1, 2, true], ['Sn', 2, 2, true]]) {
+    const el = bySymbol(sym);
+    const svg = renderLewisSVG({ z: el.z, symbol: el.symbol, name: el.name, shells: electronShells(el), charge });
+    const where = `${sym} ${chargeLabel(charge)}`;
+    assert.equal(count(svg, /class="dot"/g), dots, where);
+    assert.equal(/<path/.test(svg), bracket, `${where} brackets`);
+    const ion = chargeLabel(charge).replace('+', '\\+');
+    assert.match(svg, bracket ? new RegExp(`>${ion}</text>`) : new RegExp(`>${sym}<tspan[^>]*>${ion}</tspan>`), where);
+    assert.match(svg, new RegExp(`${el.z} protons?, ${el.z - charge} electrons?: charge`), where);
+  }
+  assert.equal(dotCount([2, 8, 7], -4), 8); // never more than an octet
+});
+
+test('electron dot diagram renders for every element, theme and charge', () => {
+  for (const theme of Object.keys(THEMES)) {
+    for (const el of data.elements) {
+      for (const charge of [-4, 0, 3]) {
+        const svg = renderLewisSVG({ z: el.z, symbol: el.symbol, name: el.name, shells: electronShells(el), theme, charge });
+        assert.match(svg, /^<svg[^>]+viewBox="0 0 \d+ \d+"/);
+        assert.doesNotMatch(svg, /NaN|undefined/);
+      }
+    }
+  }
 });

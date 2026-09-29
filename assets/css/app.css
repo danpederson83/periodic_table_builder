@@ -116,6 +116,8 @@ button.danger { color: var(--danger); }
 .tile-export { margin: 0 0 18px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #fbfcfd; }
 .tile-export h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 .tile-preview svg { display: block; width: 100%; max-height: 220px; height: auto; margin: 0 auto 6px; border-radius: 4px; background-image: repeating-conic-gradient(#eef1f4 0 25%, #fff 0 50%); background-size: 16px 16px; }
+.diagram-kind { margin: 0 0 8px; }
+.diagram-kind button { padding: 5px 10px; font-size: 13px; }
 .bohr-preview svg { max-height: 300px; }
 .bohr-charge { margin: 0 0 10px; }
 .bohr-ion { margin: 0; font-size: 14px; }
