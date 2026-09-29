@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { renderSVG, renderTileSVG } from '../assets/js/render.js';
 import { makeState, encodeState, decodeState } from '../assets/js/state.js';
+import { renderBohrSVG, electronShells, shellsFromConfig, aufbauShells } from '../assets/js/bohr.js';
 import { PRESETS } from '../assets/js/presets.js';
 import { SCHEMES, THEMES } from '../assets/js/schemes.js';
 
@@ -85,4 +86,49 @@ test('single tile can drop its highlight color', () => {
   const state = makeState({ highlights: { 26: 1 } });
   assert.match(renderTileSVG(26, state, data), /stroke-width="3"/);
   assert.doesNotMatch(renderTileSVG(26, state, data, { highlight: false }), /stroke-width="3"/);
+});
+
+const bySymbol = (sym) => data.elements.find((el) => el.symbol === sym);
+
+test('electron shells come from the configuration for every element', () => {
+  for (const el of data.elements) {
+    const shells = shellsFromConfig(el.config, el.z);
+    assert.ok(shells, `${el.symbol}: could not read "${el.config}"`);
+    assert.equal(shells.reduce((a, b) => a + b, 0), el.z);
+    // Palladium ([Kr]4d10) is the one element with no electrons in its period's shell.
+    assert.equal(shells.length, el.symbol === 'Pd' ? 4 : el.period, `${el.symbol} shell count`);
+  }
+});
+
+test('shell populations match classroom examples', () => {
+  const cases = { H: [1], Na: [2, 8, 1], Mg: [2, 8, 2], Cl: [2, 8, 7], Ar: [2, 8, 8], K: [2, 8, 8, 1], Fe: [2, 8, 14, 2], Cu: [2, 8, 18, 1], Og: [2, 8, 18, 32, 32, 18, 8] };
+  for (const [sym, shells] of Object.entries(cases)) assert.deepEqual(electronShells(bySymbol(sym)), shells, sym);
+});
+
+test('shells are calculated when no usable configuration is given', () => {
+  assert.deepEqual(aufbauShells(17), [2, 8, 7]);
+  assert.equal(shellsFromConfig('[Ne]3s2', 17), null); // doesn't add up to z
+  assert.match(renderBohrSVG({ z: 12, symbol: 'Mg' }), /2, 8, 2/);
+});
+
+test('Bohr diagram draws one ring per shell and highlights the outer electrons', () => {
+  for (const [sym, rings, valence, inner] of [['Na', 3, 1, 10], ['Mg', 3, 2, 10], ['Cl', 3, 7, 10], ['H', 1, 1, 0]]) {
+    const el = bySymbol(sym);
+    const svg = renderBohrSVG({ z: el.z, symbol: el.symbol, name: el.name, shells: electronShells(el) });
+    assert.equal(count(svg, /fill="none" stroke=/g), rings, `${sym} rings`);
+    assert.equal(count(svg, /class="valence"/g), valence, `${sym} outer electrons`);
+    assert.equal(count(svg, /class="core"/g), inner, `${sym} inner electrons`);
+    assert.match(svg, new RegExp(`>${sym}</text>`));
+  }
+});
+
+test('Bohr diagram renders for every element and theme', () => {
+  for (const theme of Object.keys(THEMES)) {
+    for (const el of data.elements) {
+      const svg = renderBohrSVG({ z: el.z, symbol: el.symbol, name: el.name, shells: electronShells(el), theme });
+      assert.match(svg, /^<svg[^>]+viewBox="0 0 \d+ \d+"/);
+      assert.doesNotMatch(svg, /NaN|undefined/);
+      assert.equal(count(svg, /class="(valence|core)"/g), el.z);
+    }
+  }
 });

@@ -21,6 +21,9 @@ Make custom, high-resolution periodic tables for lessons, slides and tests.
 - **Single-tile images:** from the Inspect panel, save one element's tile as PNG or SVG (or copy
   it) for a slide about that element. It uses the table's tile settings, and **Label the parts**
   adds pointer labels for atomic number, symbol, name, mass and any extra values.
+- **Bohr models:** the Inspect panel also draws a Bohr-style shell diagram for the element, with
+  the outer-shell (valence) electrons highlighted. You can export it as PNG or SVG, or copy it.
+  Shell counts come from the element's electron configuration.
 - **Landing page** with a gallery of 16 starter tables. See [`docs/RESEARCH.md`](docs/RESEARCH.md)
   for why these were chosen.
 
@@ -94,6 +97,7 @@ hostname at `http://localhost:8080`.
 index.html              landing page and preset gallery
 builder.html            the editor
 assets/js/render.js     state + data → standalone SVG string, for the table or one tile (pure, also used in tests)
+assets/js/bohr.js       electron shells + Bohr model SVG (pure, also used in tests)
 assets/js/schemes.js    color schemes, themes, heatmap ramps
 assets/js/properties.js element properties shown on tiles and in heatmaps
 assets/js/presets.js    starter tables

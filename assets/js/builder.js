@@ -1,5 +1,6 @@
 import { loadData } from './data.js';
 import { renderSVG, renderTileSVG } from './render.js';
+import { renderBohrSVG, electronShells } from './bohr.js';
 import { SCHEMES, THEMES, RAMPS } from './schemes.js';
 import { PROPERTIES, CORNER_FIELDS, LINE_FIELDS, HEAT_FIELDS, displayValue } from './properties.js';
 import { PRESETS, presetById } from './presets.js';
@@ -18,6 +19,7 @@ let current = 0; // palette index used by the highlight tool
 let inspected = null;
 // Options for exporting the inspected element's tile. Not part of the table, so not in share links.
 const tileOpts = { annotate: false, highlight: true, size: 600 };
+const bohrOpts = { caption: true };
 const undoStack = [];
 const redoStack = [];
 
@@ -172,6 +174,7 @@ function setupControls() {
   $('#canvas').addEventListener('click', onCanvasClick);
   $('#stats-body').addEventListener('change', onTileOption);
   $('#stats-body').addEventListener('click', onTileExport);
+  $('#stats-body').addEventListener('click', onBohrExport);
   $('#stats-close').addEventListener('click', closeStats);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeStats();
@@ -327,6 +330,17 @@ function showStats(z) {
         <button type="button" data-tile-export="svg">SVG</button>
       </div>
     </section>
+    <section class="tile-export" aria-label="Bohr model">
+      <h3>Bohr model</h3>
+      <div class="tile-preview bohr-preview">${bohrSVG(z, { fluid: true })}</div>
+      <p class="hint">Electrons per shell, from the element's electron configuration. Outer-shell electrons are highlighted${el.block === 'd' || el.block === 'f' ? '. For d- and f-block elements, valence electrons can also include inner d or f electrons' : ''}.</p>
+      <label><input type="checkbox" data-bohr-opt="caption"${bohrOpts.caption ? ' checked' : ''}> Show shell counts and key</label>
+      <div class="tile-actions">
+        <button type="button" class="primary" data-bohr-export="png">Download PNG</button>
+        <button type="button" data-bohr-export="copy">Copy image</button>
+        <button type="button" data-bohr-export="svg">SVG</button>
+      </div>
+    </section>
     <dl>${rows.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('')}</dl>
     <p class="stats-src">Source: <a href="https://pubchem.ncbi.nlm.nih.gov/element/${el.z}" target="_blank" rel="noopener">PubChem · ${el.name}</a></p>`;
   $('#stats').hidden = false;
@@ -343,6 +357,11 @@ function tileName(z) {
 }
 
 function onTileOption(e) {
+  if (e.target.dataset.bohrOpt) {
+    bohrOpts[e.target.dataset.bohrOpt] = e.target.checked;
+    $('.bohr-preview').innerHTML = bohrSVG(inspected, { fluid: true });
+    return;
+  }
   const key = e.target.dataset.tileOpt;
   if (!key) return;
   tileOpts[key] = e.target.type === 'checkbox' ? e.target.checked : Number(e.target.value);
@@ -358,6 +377,28 @@ async function onTileExport(e) {
     if (kind === 'svg') downloadSVG(svg, tileName(inspected));
     else if (kind === 'png') { await downloadPNG(svg, tileName(inspected), scale, `-${tileOpts.size}px`); status('Tile PNG downloaded'); }
     else { await copyPNG(svg, scale); status('Tile copied. Paste it into your slides.'); }
+  } catch (err) { status(err.message); }
+}
+
+// ---- Bohr model ------------------------------------------------------------
+
+function bohrSVG(z, opts = {}) {
+  const el = data.elements[z - 1];
+  return renderBohrSVG({
+    z, symbol: el.symbol, name: el.name, shells: electronShells(el),
+    theme: state.theme, transparent: state.transparent, caption: bohrOpts.caption, ...opts,
+  });
+}
+
+async function onBohrExport(e) {
+  const kind = e.target.closest('[data-bohr-export]')?.dataset.bohrExport;
+  if (!kind || !inspected) return;
+  const svg = bohrSVG(inspected);
+  const name = `${data.elements[inspected - 1].name} Bohr model`;
+  try {
+    if (kind === 'svg') downloadSVG(svg, name);
+    else if (kind === 'png') { await downloadPNG(svg, name, 3, ''); status('Bohr model PNG downloaded'); }
+    else { await copyPNG(svg, 3); status('Bohr model copied. Paste it into your slides.'); }
   } catch (err) { status(err.message); }
 }
 
