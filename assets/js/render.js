@@ -181,6 +181,16 @@ function makeColorer(state, elements, theme) {
   };
 }
 
+// A tile's fill and stroke under the current scheme and theme, including its highlight
+// unless opts.highlight is false. Lets other drawings (the Bohr model) match the table.
+export function tileColorsFor(z, state, data, opts = {}) {
+  const theme = THEMES[state.theme] || THEMES.light;
+  const palette = opts.highlight === false ? null : state.palette[state.highlights[z]];
+  if (palette) return highlightColors(palette.color, theme);
+  const { fill, stroke } = makeColorer(state, data.elements, theme).base(data.elements[z - 1]);
+  return { fill, stroke };
+}
+
 // ---- tiles ---------------------------------------------------------------
 
 // Draws a tile's contents at the origin. `marks` records where each visible part sits

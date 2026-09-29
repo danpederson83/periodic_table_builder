@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { renderSVG, renderTileSVG } from '../assets/js/render.js';
+import { renderSVG, renderTileSVG, tileColorsFor } from '../assets/js/render.js';
 import { makeState, encodeState, decodeState } from '../assets/js/state.js';
 import { renderBohrSVG, electronShells, shellsFromConfig, aufbauShells } from '../assets/js/bohr.js';
 import { PRESETS } from '../assets/js/presets.js';
@@ -129,6 +129,24 @@ test('Bohr diagram renders for every element and theme', () => {
       assert.match(svg, /^<svg[^>]+viewBox="0 0 \d+ \d+"/);
       assert.doesNotMatch(svg, /NaN|undefined/);
       assert.equal(count(svg, /class="(valence|core)"/g), el.z);
+    }
+  }
+});
+
+test('Bohr nucleus takes the color of the element tile', () => {
+  const tileFill = (svg) => svg.match(/<rect x="[\d.]+" y="[\d.]+" width="[\d.]+" height="[\d.]+" rx="4" fill="([^"]+)"/)[1];
+  const nucleusFill = (svg) => svg.match(/<circle cx="[\d.]+" cy="[\d.]+" r="34" fill="([^"]+)"/)[1];
+  for (const theme of Object.keys(THEMES)) {
+    for (const scheme of ['families', 'heatmap', 'none']) {
+      const state = makeState({ theme, scheme, highlights: { 26: 1 } });
+      for (const [z, highlight] of [[11, true], [26, true], [26, false]]) {
+        const el = data.elements[z - 1];
+        const nucleus = tileColorsFor(z, state, data, { highlight });
+        const bohr = renderBohrSVG({ z, symbol: el.symbol, shells: electronShells(el), theme, nucleus });
+        const where = `${el.symbol} ${theme}/${scheme} highlight=${highlight}`;
+        assert.equal(nucleusFill(bohr), tileFill(renderTileSVG(z, state, data, { highlight })), where);
+        assert.match(bohr, new RegExp(`stroke="${nucleus.stroke}" stroke-width="2.5"`), where);
+      }
     }
   }
 });

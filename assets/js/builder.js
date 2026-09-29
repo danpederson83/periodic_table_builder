@@ -1,5 +1,5 @@
 import { loadData } from './data.js';
-import { renderSVG, renderTileSVG } from './render.js';
+import { renderSVG, renderTileSVG, tileColorsFor } from './render.js';
 import { renderBohrSVG, electronShells } from './bohr.js';
 import { SCHEMES, THEMES, RAMPS } from './schemes.js';
 import { PROPERTIES, CORNER_FIELDS, LINE_FIELDS, HEAT_FIELDS, displayValue } from './properties.js';
@@ -366,6 +366,8 @@ function onTileOption(e) {
   if (!key) return;
   tileOpts[key] = e.target.type === 'checkbox' ? e.target.checked : Number(e.target.value);
   if (key !== 'size') $('.tile-preview').innerHTML = tileSVG(inspected, { fluid: true });
+  // The Bohr nucleus follows the tile's color, so it also changes when the highlight is toggled.
+  if (key === 'highlight') $('.bohr-preview').innerHTML = bohrSVG(inspected, { fluid: true });
 }
 
 async function onTileExport(e) {
@@ -386,7 +388,8 @@ function bohrSVG(z, opts = {}) {
   const el = data.elements[z - 1];
   return renderBohrSVG({
     z, symbol: el.symbol, name: el.name, shells: electronShells(el),
-    theme: state.theme, transparent: state.transparent, caption: bohrOpts.caption, ...opts,
+    theme: state.theme, transparent: state.transparent, caption: bohrOpts.caption,
+    nucleus: tileColorsFor(z, state, data, { highlight: tileOpts.highlight }), ...opts,
   });
 }
 

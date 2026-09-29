@@ -2,7 +2,7 @@
 // electrons spaced evenly on each ring, and the outermost shell's electrons highlighted.
 // Pure (returns an SVG string) so it works in the browser and in Node tests.
 
-import { THEMES } from './schemes.js';
+import { THEMES, textOn } from './schemes.js';
 
 const FONT = "'Segoe UI', 'Helvetica Neue', Helvetica, Arial, 'DejaVu Sans', sans-serif";
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -68,10 +68,12 @@ function colors(theme) {
 
 // Renders the diagram. Inputs: z and symbol (required); shells (electrons per shell, inner first)
 // or config (an electron configuration string) — shells are calculated if neither is usable.
-// Options: name, theme ('light' | 'dark' | 'print'), transparent, caption (default true), fluid.
-export function renderBohrSVG({ z, symbol, name = '', shells, config, theme: themeKey = 'light', transparent = false, caption = true, fluid = false }) {
+// Options: name, theme ('light' | 'dark' | 'print'), transparent, caption (default true), fluid,
+// nucleus ({ fill, stroke } to color the nucleus like the element's tile).
+export function renderBohrSVG({ z, symbol, name = '', shells, config, theme: themeKey = 'light', transparent = false, caption = true, fluid = false, nucleus }) {
   const theme = THEMES[themeKey] || THEMES.light;
   const c = colors(theme);
+  if (nucleus) Object.assign(c, { nucleus: nucleus.fill, nucleusStroke: nucleus.stroke });
   const pop = shells?.length ? shells : shellsFromConfig(config, z) || aufbauShells(z);
   const n = pop.length;
   const outer = pop[n - 1];
@@ -90,7 +92,7 @@ export function renderBohrSVG({ z, symbol, name = '', shells, config, theme: the
 
   const nucSize = Math.min(34, (NUC * 1.5) / Math.max(1, symbol.length * 0.62));
   out.push(`<circle cx="${cx}" cy="${cy}" r="${NUC}" fill="${c.nucleus}" stroke="${c.nucleusStroke}" stroke-width="2.5"/>`);
-  out.push(`<text x="${cx}" y="${r1(cy + nucSize * 0.36)}" font-size="${r1(nucSize)}" font-weight="800" fill="${theme.title}" text-anchor="middle">${esc(symbol)}</text>`);
+  out.push(`<text x="${cx}" y="${r1(cy + nucSize * 0.36)}" font-size="${r1(nucSize)}" font-weight="800" fill="${nucleus ? textOn(c.nucleus, theme) : theme.title}" text-anchor="middle">${esc(symbol)}</text>`);
 
   pop.forEach((count, i) => {
     const r = NUC + step * (i + 1);
