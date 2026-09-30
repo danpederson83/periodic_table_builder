@@ -584,17 +584,22 @@ function dotPanel(res, c, theme, style, after) {
   res.atoms.forEach((at, i) => {
     const p = pos[i], half = halves[i];
     const mine = res.bonds.filter((bd) => bd.a === i || bd.b === i).map((bd) => ({ order: bd.order, dir: dirTo(p, pos[bd.a === i ? bd.b : bd.a]) }));
-    // Lone pairs take the free sides farthest from the bonds; before bonding, the electrons that
-    // will be shared sit one per side, facing the bond first, then on the sides left over.
+    // Lone pairs take the free sides farthest from the bonds. An end atom with two lone pairs has
+    // them above and below its bond, mirrored across it (O=O, not pairs on the top and outside).
+    // Before bonding, the electrons that will be shared sit one per side, facing the bond first,
+    // then on the sides left over.
     const far = (t) => Math.min(...mine.map((bd) => Math.abs(angDiff(t, bd.dir))));
     const free = COMPASS.filter((t) => !mine.some((bd) => sameDir(t, bd.dir))).sort((x, y) => far(y) - far(x));
-    const loneSides = free.slice(0, at.lone);
+    const loneSides = mine.length === 1 && at.lone === 2
+      ? free.filter((t) => Math.abs(far(t) - Math.PI / 2) < 1e-6)
+      : free.slice(0, at.lone);
     const onSide = []; // { t, n }
     for (const t of loneSides) onSide.push({ t, n: 2 });
     if (!after) {
       for (const bd of mine) onSide.push({ t: bd.dir, n: 1 });
       const extra = mine.reduce((s, bd) => s + bd.order - 1, 0);
-      for (const t of free.slice(at.lone).sort((x, y) => far(x) - far(y)).slice(0, extra)) onSide.push({ t, n: 1 });
+      const left = free.filter((t) => !loneSides.includes(t)).sort((x, y) => far(x) - far(y));
+      for (const t of left.slice(0, extra)) onSide.push({ t, n: 1 });
     }
     for (const { t, n } of onSide) {
       const u = { x: Math.cos(t), y: Math.sin(t) }, v = { x: -u.y, y: u.x };
