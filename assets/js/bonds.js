@@ -10,8 +10,8 @@ const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 const STORAGE_KEY = 'ptb:bonds';
 
-const DEFAULTS = { a: 'Na', b: 'Cl', view: 'both', marks: 'color', theme: 'light', labels: true, transparent: false };
-const CHOICES = { view: ['both', 'before', 'after'], marks: ['color', 'cross'], theme: Object.keys(THEMES) };
+const DEFAULTS = { a: 'Na', b: 'Cl', view: 'both', style: 'bohr', marks: 'color', theme: 'light', labels: true, transparent: false };
+const CHOICES = { view: ['both', 'before', 'after'], style: ['bohr', 'dots', 'lines'], marks: ['color', 'cross'], theme: Object.keys(THEMES) };
 
 let data;
 let state;
@@ -61,7 +61,7 @@ function svgString(res, opts = {}) {
   // Nuclei are colored like the element's tile in the default (element families) table.
   const table = makeState({ theme: state.theme });
   return renderBondSVG(res, {
-    theme: state.theme, transparent: state.transparent, view: state.view, marks: state.marks, caption: state.labels,
+    theme: state.theme, transparent: state.transparent, view: state.view, style: state.style, marks: state.marks, caption: state.labels,
     nucleus: (el) => tileColorsFor(el.z, table, data), ...opts,
   });
 }

@@ -102,3 +102,26 @@ test('examples all draw, in every theme and marking style', () => {
     }
   }
 });
+
+test('covalent bonds draw as electron dots and Lewis structures, with every valence electron', () => {
+  for (const a of pickable) {
+    for (const b of pickable) {
+      const res = analyzeBond(a, b);
+      if (!res.ok || res.type !== 'covalent') continue;
+      const pair = `${a.symbol}+${b.symbol}`;
+      const valence = res.atoms.reduce((s, at) => s + (at.el.group <= 2 ? at.el.group : at.el.group - 10), 0);
+      const shared = res.bonds.reduce((s, bd) => s + 2 * bd.order, 0);
+      for (const style of ['dots', 'lines']) {
+        const before = renderBondSVG(res, { style, view: 'before', caption: false });
+        const after = renderBondSVG(res, { style, view: 'after', caption: false });
+        assert.doesNotMatch(before + after, /NaN|undefined/, `${pair} ${style}`);
+        assert.equal(count(before, /class="e"/g), valence, `${pair} ${style} before`);
+        // A Lewis structure draws each shared pair as a line instead of two electrons.
+        assert.equal(count(after, /class="e"/g), style === 'lines' ? valence - shared : valence, `${pair} ${style} after`);
+        assert.equal(count(after, /class="bond"/g), style === 'lines' ? shared / 2 : 0, `${pair} ${style} bond lines`);
+      }
+    }
+  }
+  // Ionic bonds stay Bohr models whatever the setting.
+  assert.equal(renderBondSVG(bond('Na', 'Cl'), { style: 'lines' }), renderBondSVG(bond('Na', 'Cl')));
+});

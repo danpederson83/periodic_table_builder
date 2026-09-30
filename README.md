@@ -37,6 +37,9 @@ Make custom, high-resolution periodic tables for lessons, slides and tests.
   - **Covalent** (two nonmetals, or the same one twice): the outer shells overlap, with shared pairs in
     the overlap and lone pairs around the rest. It handles single, double and triple bonds (H₂, O₂, N₂)
     and one central atom (H₂O, NH₃, CH₄, CO₂, BF₃…).
+  - A **Covalent bonds** setting draws covalent molecules as Bohr models, electron dot diagrams
+    (shared pairs as dots between the symbols) or Lewis structures (a line per shared pair, lone
+    pairs as dots). Ionic bonds are always drawn as Bohr models.
   - Each element's electrons get their own color, or a dot-and-cross style. An explanation under the
     diagram covers valence electrons, ion charges, the formula and the electronegativity difference.
   - Groups 1, 2 and 13–17 only. Transition metals, noble gases, metal–metal pairs and giant structures

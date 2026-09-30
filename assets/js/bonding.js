@@ -542,6 +542,90 @@ function covalentPanel(res, c, theme, nucleusFor, after) {
   return { svg: out.join(''), box: boxOf(res.atoms.map((_, i) => ({ ...pos[i], left: R[i], right: R[i], top: R[i], bottom: R[i] }))) };
 }
 
+// ---- electron dot and Lewis structures (covalent only) -------------------------------
+
+// Symbols with their outer electrons on four sides, as in a Lewis dot diagram. Bonds point along
+// the four sides too, so the shapes are squared off: H₂O is drawn bent at 90°, BF₃ as a T.
+const SYM = 52; // symbol font size
+const SIDE_GAP = 13; // symbol edge to its electrons
+const LEWIS_PAIR = 8; // half the spacing of two electrons on one side
+const COMPASS = [270, 90, 180, 0].map((d) => d * DEG); // top, bottom, left, right: tie-break order
+
+const symHalf = (symbol) => {
+  // Rough half-size of a bold symbol: letter widths in em, and its cap height.
+  const em = (ch) => (/[MW]/.test(ch) ? 0.95 : /[A-Z]/.test(ch) ? 0.72 : /[ilfjrt]/.test(ch) ? 0.34 : 0.58);
+  return { w: ([...symbol].reduce((s, ch) => s + em(ch), 0) * SYM) / 2, h: 0.36 * SYM };
+};
+// Distance from a symbol's center to its edge in direction t (one of the four sides).
+const edge = (half, t) => Math.abs(Math.cos(t)) * half.w + Math.abs(Math.sin(t)) * half.h;
+const sameDir = (x, y) => Math.abs(angDiff(x, y)) < 1e-6;
+
+function compassLayout(res) {
+  if (res.layout.kind !== 'star') return res.layout;
+  const n = res.layout.angles.length, lone = res.atoms[0].lone;
+  const angles = n === 4 ? [0, 90, 180, 270] : n === 3 ? [180, 0, 90] : n === 2 ? (lone ? [180, 90] : [180, 0]) : [0];
+  return { kind: 'star', angles };
+}
+
+function dotPanel(res, c, theme, style, after) {
+  const halves = res.atoms.map((at) => symHalf(at.el.symbol));
+  const EDGE = style === 'lines' ? 56 : 44; // gap between bonded symbols
+  const pos = place(compassLayout(res), res.atoms.length, (i, j, t) => edge(halves[i], t) + edge(halves[j], t) + EDGE + (after ? 0 : 56));
+  const out = [];
+  const items = [];
+
+  res.atoms.forEach((at, i) => {
+    const p = pos[i], half = halves[i];
+    const mine = res.bonds.filter((bd) => bd.a === i || bd.b === i).map((bd) => ({ order: bd.order, dir: dirTo(p, pos[bd.a === i ? bd.b : bd.a]) }));
+    // Lone pairs take the free sides farthest from the bonds; before bonding, the electrons that
+    // will be shared sit one per side, facing the bond first, then on the sides left over.
+    const far = (t) => Math.min(...mine.map((bd) => Math.abs(angDiff(t, bd.dir))));
+    const free = COMPASS.filter((t) => !mine.some((bd) => sameDir(t, bd.dir))).sort((x, y) => far(y) - far(x));
+    const loneSides = free.slice(0, at.lone);
+    const onSide = []; // { t, n }
+    for (const t of loneSides) onSide.push({ t, n: 2 });
+    if (!after) {
+      for (const bd of mine) onSide.push({ t: bd.dir, n: 1 });
+      const extra = mine.reduce((s, bd) => s + bd.order - 1, 0);
+      for (const t of free.slice(at.lone).sort((x, y) => far(x) - far(y)).slice(0, extra)) onSide.push({ t, n: 1 });
+    }
+    for (const { t, n } of onSide) {
+      const u = { x: Math.cos(t), y: Math.sin(t) }, v = { x: -u.y, y: u.x };
+      const d = edge(half, t) + SIDE_GAP;
+      for (const off of n === 1 ? [0] : [-LEWIS_PAIR, LEWIS_PAIR]) {
+        out.push(electron(p.x + d * u.x + off * v.x, p.y + d * u.y + off * v.y, at.owner, c));
+      }
+    }
+    out.push(`<text x="${r1(p.x)}" y="${r1(p.y + half.h)}" font-size="${SYM}" font-weight="700" fill="${theme.title}" text-anchor="middle">${esc(at.el.symbol)}</text>`);
+    const reach = { w: half.w + SIDE_GAP + ER, h: half.h + SIDE_GAP + ER };
+    items.push({ ...p, left: reach.w, right: reach.w, top: reach.h, bottom: reach.h });
+  });
+
+  if (after) {
+    for (const bd of res.bonds) {
+      const p = pos[bd.a], q = pos[bd.b];
+      const t = dirTo(p, q), u = { x: Math.cos(t), y: Math.sin(t) }, v = { x: -u.y, y: u.x };
+      const ea = edge(halves[bd.a], t), eb = edge(halves[bd.b], t);
+      const len = Math.hypot(q.x - p.x, q.y - p.y);
+      const s = ea + (len - ea - eb) / 2; // midpoint of the gap between the symbols
+      const m = { x: p.x + s * u.x, y: p.y + s * u.y };
+      for (let k = 0; k < bd.order; k++) {
+        if (style === 'lines') {
+          // One line per shared pair: single, double or triple bond.
+          const off = (k - (bd.order - 1) / 2) * 9, h = (len - ea - eb) / 2 - 9;
+          out.push(`<path class="bond" d="M${r1(m.x - h * u.x + off * v.x)} ${r1(m.y - h * u.y + off * v.y)}L${r1(m.x + h * u.x + off * v.x)} ${r1(m.y + h * u.y + off * v.y)}" stroke="${theme.title}" stroke-width="3.5" stroke-linecap="round"/>`);
+        } else {
+          // Each shared pair: one electron from each atom, side by side along the bond.
+          const off = (k - (bd.order - 1) / 2) * (2 * ER + 5), h = ER + 1.5;
+          out.push(electron(m.x - h * u.x + off * v.x, m.y - h * u.y + off * v.y, res.atoms[bd.a].owner, c));
+          out.push(electron(m.x + h * u.x + off * v.x, m.y + h * u.y + off * v.y, res.atoms[bd.b].owner, c));
+        }
+      }
+    }
+  }
+  return { svg: out.join(''), box: boxOf(items) };
+}
+
 function headings(res) {
   const at = res.atoms;
   if (res.type === 'ionic') {
@@ -559,7 +643,7 @@ function headings(res) {
   ];
 }
 
-function legendItems(res, c, view) {
+function legendItems(res, c, theme, view, style) {
   const names = [];
   for (const at of res.atoms) names[at.owner] ??= at.el;
   const same = names[0] === names[1];
@@ -571,22 +655,32 @@ function legendItems(res, c, view) {
     const giver = res.atoms.find((a) => a.charge > 0).owner;
     items.push({ mark: (x, y) => slotMark(x, y, giver, c), text: 'Space an electron moves into' });
   }
-  items.push({ mark: (x, y) => `<circle cx="${x}" cy="${y}" r="5" fill="${c.core}"${c.coreStroke !== 'none' ? ` stroke="${c.coreStroke}" stroke-width="1.5"` : ''}/>`, text: 'Inner-shell electrons' });
+  if (style === 'lines' && view !== 'before') {
+    items.push({ mark: (x, y) => `<path d="M${x - 9} ${y}H${x + 9}" stroke="${theme.title}" stroke-width="3.5" stroke-linecap="round"/>`, text: 'Line: one shared pair' });
+  }
+  if (style === 'bohr') {
+    items.push({ mark: (x, y) => `<circle cx="${x}" cy="${y}" r="5" fill="${c.core}"${c.coreStroke !== 'none' ? ` stroke="${c.coreStroke}" stroke-width="1.5"` : ''}/>`, text: 'Inner-shell electrons' });
+  }
   return items;
 }
 
 const est = (str, size) => str.length * size * 0.56; // rough width of sans-serif text
 
 // Draws an analyzeBond result. Options: theme ('light' | 'dark' | 'print'), transparent,
-// view ('both' | 'before' | 'after'), marks ('color' | 'cross' for dot-and-cross), caption
-// (title, panel headings and legend; default true), fluid, nucleus (el → { fill, stroke }).
-export function renderBondSVG(res, { theme: themeKey = 'light', transparent = false, view = 'both', marks = 'color', caption = true, fluid = false, nucleus } = {}) {
+// view ('both' | 'before' | 'after'), marks ('color' | 'cross' for dot-and-cross), style (how
+// covalent bonds are drawn: 'bohr' shells, 'dots' electron dot diagram, 'lines' Lewis structure
+// with a line per shared pair; ionic bonds are always Bohr models), caption (title, panel headings
+// and legend; default true), fluid, nucleus (el → { fill, stroke }).
+export function renderBondSVG(res, { theme: themeKey = 'light', transparent = false, view = 'both', marks = 'color', style = 'bohr', caption = true, fluid = false, nucleus } = {}) {
   const theme = THEMES[themeKey] || THEMES.light;
   const c = palette(theme, marks);
   const nucleusFor = (el) => nucleus?.(el) || null;
+  if (res.type === 'ionic' || !['dots', 'lines'].includes(style)) style = 'bohr';
   const [before, after] = res.type === 'ionic'
     ? [() => ionicBefore(res, c, theme, nucleusFor), () => ionicAfter(res, c, theme, nucleusFor)]
-    : [() => covalentPanel(res, c, theme, nucleusFor, false), () => covalentPanel(res, c, theme, nucleusFor, true)];
+    : style !== 'bohr'
+      ? [() => dotPanel(res, c, theme, style, false), () => dotPanel(res, c, theme, style, true)]
+      : [() => covalentPanel(res, c, theme, nucleusFor, false), () => covalentPanel(res, c, theme, nucleusFor, true)];
   const heads = headings(res);
   const panels = [];
   if (view !== 'after') panels.push({ ...before(), head: heads[0] });
@@ -643,7 +737,7 @@ export function renderBondSVG(res, { theme: themeKey = 'light', transparent = fa
   // Legend rows, wrapped to the width.
   if (caption) {
     y += 34;
-    const items = legendItems(res, c, view).map((it) => ({ ...it, w: 26 + est(it.text, 16) + 30 }));
+    const items = legendItems(res, c, theme, view, style).map((it) => ({ ...it, w: 26 + est(it.text, 16) + 30 }));
     const rows = [[]];
     for (const it of items) {
       const row = rows.at(-1);

@@ -54,6 +54,11 @@
           <option value="before">Before bonding</option>
           <option value="after">After bonding</option>
         </select></label>
+        <label>Covalent bonds <select data-bind="style">
+          <option value="bohr">Bohr model (shells)</option>
+          <option value="dots">Electron dots</option>
+          <option value="lines">Lewis structure (lines)</option>
+        </select></label>
         <label>Electrons <select data-bind="marks">
           <option value="color">Colored dots</option>
           <option value="cross">Dot and cross</option>
@@ -63,6 +68,7 @@
           <label><input type="checkbox" data-bind="labels"> Title, headings and key</label>
           <label><input type="checkbox" data-bind="transparent"> Transparent background</label>
         </div>
+        <p class="hint">Ionic bonds are always drawn as Bohr models.</p>
       </section>
     </aside>
 
