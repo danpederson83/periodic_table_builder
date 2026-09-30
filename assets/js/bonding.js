@@ -371,11 +371,12 @@ const slotMark = (x, y, owner, c) => `<circle class="slot" cx="${r1(x)}" cy="${r
 
 // One atom or ion: shells, nucleus, inner electrons, and the outer shell's items, each
 // { a: angle, owner, slot?: true }. With outer = null, the outer shell is drawn evenly spaced
-// (outerOwner: its owner's color, or null for inner-shell gray).
-function atomSVG({ x, y, R, shells, symbol, owner, nucleus, outer, outerOwner = null }, c, theme) {
+// (outerOwner: its owner's color, or null for inner-shell gray). With wideOuter, the inner shells
+// keep their usual spacing and only the outer shell moves out to R.
+function atomSVG({ x, y, R, shells, symbol, owner, nucleus, outer, outerOwner = null, wideOuter = false }, c, theme) {
   const n = shells.length;
   const out = [];
-  const radius = (i) => NUC + ((R - NUC) * (i + 1)) / n;
+  const radius = (i) => (wideOuter && i < n - 1 ? NUC + STEP * (i + 1) : NUC + ((R - NUC) * (i + 1)) / n);
   shells.forEach((_, i) => out.push(`<circle cx="${r1(x)}" cy="${r1(y)}" r="${r1(radius(i))}" fill="none" stroke="${c.ring}" stroke-width="2"/>`));
   const nuc = nucleus || { fill: c.nucleus, stroke: c.nucleusStroke };
   const size = Math.min(24, (NUC * 1.5) / Math.max(1, symbol.length * 0.62));
@@ -393,7 +394,7 @@ function atomSVG({ x, y, R, shells, symbol, owner, nucleus, outer, outerOwner = 
       return;
     }
     const colored = last && outerOwner != null;
-    const step = (R - NUC) / n;
+    const step = wideOuter ? STEP : (R - NUC) / n;
     const er = colored ? ER : Math.min(5, step * 0.24, ((TAU * r) / count) * 0.34);
     for (let k = 0; k < count; k++) {
       const p = onRing({ x, y }, r, -Math.PI / 2 + (TAU * k) / count);
@@ -497,10 +498,16 @@ function ionicAfter(res, c, theme, nucleusFor) {
   return { svg: out.join(''), box: boxOf(atoms.map((at, i) => ({ ...pos[i], left: at.h, right: at.h + CH, top: at.h, bottom: at.h }))) };
 }
 
-// Covalent atoms share one set of radii for both panels. A central atom is enlarged when needed,
-// so its neighbors (bigger atoms around a small one, like CCl₄) don't run into each other.
+// Covalent atoms share one set of radii for both panels. The outer shell sits far enough out that
+// the overlap between bonded atoms stays outside the inner shells, so shared electrons are only
+// ever in the outer shells. A central atom is enlarged when needed, so its neighbors (bigger atoms
+// around a small one, like CCl₄) don't run into each other.
+const INNER_CLEAR = 16; // gap between the overlap and the last inner shell
 function covalentRadii(res) {
-  const R = res.atoms.map((at) => outerRadius(electronShells(at.el)));
+  const R = res.atoms.map((at) => {
+    const n = electronShells(at.el).length;
+    return Math.max(outerRadius(electronShells(at.el)), n > 1 ? NUC + STEP * (n - 1) + OVERLAP + INNER_CLEAR : 0);
+  });
   if (res.layout.kind === 'star' && res.layout.angles.length > 1) {
     const angles = res.layout.angles.map((d) => d * DEG).sort((x, y) => x - y);
     const sep = Math.min(...angles.map((t, i) => norm((angles[i + 1] ?? angles[0] + TAU) - t)));
@@ -522,7 +529,7 @@ function covalentPanel(res, c, theme, nucleusFor, after) {
     const outer = [];
     if (!after) mine.forEach((bd, k) => cluster(dirs[k], bd.order, PAIR / R[i]).forEach((a) => outer.push({ a, owner: at.owner })));
     for (const d of spreadInGaps(dirs, at.lone)) cluster(d, 2, PAIR / R[i]).forEach((a) => outer.push({ a, owner: at.owner }));
-    out.push(atomSVG({ ...pos[i], R: R[i], shells: shells[i], symbol: at.el.symbol, owner: at.owner, nucleus: nucleusFor(at.el), outer }, c, theme));
+    out.push(atomSVG({ ...pos[i], R: R[i], shells: shells[i], symbol: at.el.symbol, owner: at.owner, nucleus: nucleusFor(at.el), outer, wideOuter: true }, c, theme));
   });
   if (after) {
     // Shared pairs sit in the overlap, one electron from each atom, stacked across the bond.
